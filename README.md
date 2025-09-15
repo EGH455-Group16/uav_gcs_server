@@ -91,7 +91,7 @@ python -m flask db upgrade
 python app.py
 ```
 
-The server will start on `http://0.0.0.0:5000` and be accessible from any device on the LAN.
+The server will start on `http://localhost:5000` and be accessible from any device on the LAN.
 
 ### Quick Start for Windows Users
 
