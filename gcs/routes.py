@@ -11,6 +11,99 @@ bp = Blueprint("routes", __name__)
 def index():
     return render_template("dashboard.html")
 
+@bp.route("/api/latest-sensor")
+def latest_sensor():
+    """Get the latest sensor data for dashboard initialization"""
+    from .models import SensorData
+    latest = SensorData.query.order_by(SensorData.ts.desc()).first()
+    if latest:
+        return jsonify({
+            "ts": latest.ts.isoformat(),
+            "co_ppm": latest.co_ppm,
+            "no2_ppm": latest.no2_ppm,
+            "nh3_ppm": latest.nh3_ppm,
+            "light_lux": latest.light_lux,
+            "temp_c": latest.temp_c,
+            "pressure_hpa": latest.pressure_hpa,
+            "humidity_pct": latest.humidity_pct,
+            "source": latest.source
+        })
+    return jsonify(None)
+
+@bp.route("/api/recent-targets")
+def recent_targets():
+    """Get recent target detections for dashboard initialization"""
+    from .models import TargetDetection
+    recent = TargetDetection.query.order_by(TargetDetection.ts.desc()).limit(20).all()
+    return jsonify([{
+        "ts": target.ts.isoformat(),
+        "target_type": target.target_type,
+        "details": target.details_json,
+        "image_url": target.image_url
+    } for target in recent])
+
+@bp.route("/database-viewer")
+def database_viewer():
+    """Database viewer page"""
+    return render_template("database_viewer.html")
+
+@bp.route("/api/sensor-data")
+def api_sensor_data():
+    """Get all sensor data for database viewer"""
+    from .models import SensorData
+    from flask import request
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    
+    sensor_data = SensorData.query.order_by(SensorData.ts.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    return jsonify({
+        "data": [{
+            "id": record.id,
+            "ts": record.ts.isoformat(),
+            "co_ppm": record.co_ppm,
+            "no2_ppm": record.no2_ppm,
+            "nh3_ppm": record.nh3_ppm,
+            "light_lux": record.light_lux,
+            "temp_c": record.temp_c,
+            "pressure_hpa": record.pressure_hpa,
+            "humidity_pct": record.humidity_pct,
+            "source": record.source
+        } for record in sensor_data.items],
+        "total": sensor_data.total,
+        "pages": sensor_data.pages,
+        "current_page": sensor_data.page,
+        "per_page": sensor_data.per_page
+    })
+
+@bp.route("/api/target-data")
+def api_target_data():
+    """Get all target detection data for database viewer"""
+    from .models import TargetDetection
+    from flask import request
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    
+    target_data = TargetDetection.query.order_by(TargetDetection.ts.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    return jsonify({
+        "data": [{
+            "id": record.id,
+            "ts": record.ts.isoformat(),
+            "target_type": record.target_type,
+            "details": record.details_json,
+            "image_url": record.image_url
+        } for record in target_data.items],
+        "total": target_data.total,
+        "pages": target_data.pages,
+        "current_page": target_data.page,
+        "per_page": target_data.per_page
+    })
+
 @bp.route("/health")
 def health():
     """Health check endpoint for monitoring"""

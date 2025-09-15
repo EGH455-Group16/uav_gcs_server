@@ -1,0 +1,428 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="container">
+  <header class="dashboard-header">
+    <h1>Database Viewer</h1>
+    <div class="status-indicators">
+      <span id="total-records">Total Records: Loading...</span>
+      <button id="refresh-data" class="btn-secondary">Refresh Data</button>
+      <a href="/" class="btn-secondary">Back to Dashboard</a>
+    </div>
+  </header>
+
+  <section class="data-tabs">
+    <div class="tab-buttons">
+      <button id="sensor-tab" class="tab-btn active">Sensor Data</button>
+      <button id="target-tab" class="tab-btn">Target Detections</button>
+    </div>
+
+    <div id="sensor-content" class="tab-content active">
+      <div class="table-controls">
+        <label>
+          Records per page:
+          <select id="sensor-per-page">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
+        <button id="prev-sensor-page" class="btn-secondary">Previous</button>
+        <span id="sensor-page-info">Page 1 of 1</span>
+        <button id="next-sensor-page" class="btn-secondary">Next</button>
+      </div>
+      
+      <div class="table-container">
+        <table id="sensor-table" class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Timestamp</th>
+              <th>CO (ppm)</th>
+              <th>NO₂ (ppm)</th>
+              <th>NH₃ (ppm)</th>
+              <th>Light (lux)</th>
+              <th>Temp (°C)</th>
+              <th>Pressure (hPa)</th>
+              <th>Humidity (%)</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="10">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="target-content" class="tab-content">
+      <div class="table-controls">
+        <label>
+          Records per page:
+          <select id="target-per-page">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+          </select>
+        </label>
+        <button id="prev-target-page" class="btn-secondary">Previous</button>
+        <span id="target-page-info">Page 1 of 1</span>
+        <button id="next-target-page" class="btn-secondary">Next</button>
+      </div>
+      
+      <div class="table-container">
+        <table id="target-table" class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Timestamp</th>
+              <th>Type</th>
+              <th>Details</th>
+              <th>Image URL</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="5">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<style>
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.status-indicators {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.btn-secondary {
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+  text-decoration: none;
+  color: #333;
+  display: inline-block;
+}
+
+.btn-secondary:hover {
+  background: #e0e0e0;
+}
+
+.data-tabs {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.tab-buttons {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 1rem 2rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+  border-bottom: 3px solid transparent;
+}
+
+.tab-btn.active {
+  background: white;
+  border-bottom-color: #2196F3;
+  font-weight: bold;
+}
+
+.tab-btn:hover:not(.active) {
+  background: #e9ecef;
+}
+
+.tab-content {
+  display: none;
+  padding: 1rem;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.table-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.table-container {
+  overflow-x: auto;
+  max-height: 600px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.data-table th {
+  background: #f8f9fa;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.data-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.data-table td {
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.timestamp {
+  white-space: nowrap;
+}
+
+.details-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.url-cell {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.url-cell a {
+  color: #2196F3;
+  text-decoration: none;
+}
+
+.url-cell a:hover {
+  text-decoration: underline;
+}
+</style>
+
+<script>
+// Database viewer functionality
+let currentSensorPage = 1;
+let currentTargetPage = 1;
+let sensorPerPage = 50;
+let targetPerPage = 50;
+
+// Tab switching
+document.getElementById('sensor-tab').addEventListener('click', () => switchTab('sensor'));
+document.getElementById('target-tab').addEventListener('click', () => switchTab('target'));
+
+function switchTab(tab) {
+  // Update tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+  
+  document.getElementById(`${tab}-tab`).classList.add('active');
+  document.getElementById(`${tab}-content`).classList.add('active');
+  
+  // Load data for the selected tab
+  if (tab === 'sensor') {
+    loadSensorData();
+  } else {
+    loadTargetData();
+  }
+}
+
+// Load sensor data
+async function loadSensorData() {
+  try {
+    const response = await fetch(`/api/sensor-data?page=${currentSensorPage}&per_page=${sensorPerPage}`);
+    const data = await response.json();
+    
+    updateSensorTable(data.data);
+    updateSensorPagination(data);
+    updateTotalRecords(data.total + (await getTargetTotal()));
+  } catch (error) {
+    console.error('Error loading sensor data:', error);
+    document.querySelector('#sensor-table tbody').innerHTML = '<tr><td colspan="10">Error loading data</td></tr>';
+  }
+}
+
+// Load target data
+async function loadTargetData() {
+  try {
+    const response = await fetch(`/api/target-data?page=${currentTargetPage}&per_page=${targetPerPage}`);
+    const data = await response.json();
+    
+    updateTargetTable(data.data);
+    updateTargetPagination(data);
+    updateTotalRecords((await getSensorTotal()) + data.total);
+  } catch (error) {
+    console.error('Error loading target data:', error);
+    document.querySelector('#target-table tbody').innerHTML = '<tr><td colspan="5">Error loading data</td></tr>';
+  }
+}
+
+// Update sensor table
+function updateSensorTable(data) {
+  const tbody = document.querySelector('#sensor-table tbody');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10">No sensor data found</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = data.map(record => `
+    <tr>
+      <td>${record.id}</td>
+      <td class="timestamp">${new Date(record.ts).toLocaleString()}</td>
+      <td>${record.co_ppm ? record.co_ppm.toFixed(3) : '--'}</td>
+      <td>${record.no2_ppm ? record.no2_ppm.toFixed(3) : '--'}</td>
+      <td>${record.nh3_ppm ? record.nh3_ppm.toFixed(3) : '--'}</td>
+      <td>${record.light_lux ? record.light_lux.toFixed(0) : '--'}</td>
+      <td>${record.temp_c ? record.temp_c.toFixed(2) : '--'}</td>
+      <td>${record.pressure_hpa ? record.pressure_hpa.toFixed(2) : '--'}</td>
+      <td>${record.humidity_pct ? record.humidity_pct.toFixed(2) : '--'}</td>
+      <td>${record.source || '--'}</td>
+    </tr>
+  `).join('');
+}
+
+// Update target table
+function updateTargetTable(data) {
+  const tbody = document.querySelector('#target-table tbody');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5">No target data found</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = data.map(record => `
+    <tr>
+      <td>${record.id}</td>
+      <td class="timestamp">${new Date(record.ts).toLocaleString()}</td>
+      <td>${record.target_type}</td>
+      <td class="details-cell">${JSON.stringify(record.details)}</td>
+      <td class="url-cell">${record.image_url ? `<a href="${record.image_url}" target="_blank">View Image</a>` : '--'}</td>
+    </tr>
+  `).join('');
+}
+
+// Pagination functions
+function updateSensorPagination(data) {
+  document.getElementById('sensor-page-info').textContent = `Page ${data.current_page} of ${data.pages}`;
+  document.getElementById('prev-sensor-page').disabled = data.current_page <= 1;
+  document.getElementById('next-sensor-page').disabled = data.current_page >= data.pages;
+}
+
+function updateTargetPagination(data) {
+  document.getElementById('target-page-info').textContent = `Page ${data.current_page} of ${data.pages}`;
+  document.getElementById('prev-target-page').disabled = data.current_page <= 1;
+  document.getElementById('next-target-page').disabled = data.current_page >= data.pages;
+}
+
+// Event listeners for pagination
+document.getElementById('prev-sensor-page').addEventListener('click', () => {
+  if (currentSensorPage > 1) {
+    currentSensorPage--;
+    loadSensorData();
+  }
+});
+
+document.getElementById('next-sensor-page').addEventListener('click', () => {
+  currentSensorPage++;
+  loadSensorData();
+});
+
+document.getElementById('prev-target-page').addEventListener('click', () => {
+  if (currentTargetPage > 1) {
+    currentTargetPage--;
+    loadTargetData();
+  }
+});
+
+document.getElementById('next-target-page').addEventListener('click', () => {
+  currentTargetPage++;
+  loadTargetData();
+});
+
+// Per-page change handlers
+document.getElementById('sensor-per-page').addEventListener('change', (e) => {
+  sensorPerPage = parseInt(e.target.value);
+  currentSensorPage = 1;
+  loadSensorData();
+});
+
+document.getElementById('target-per-page').addEventListener('change', (e) => {
+  targetPerPage = parseInt(e.target.value);
+  currentTargetPage = 1;
+  loadTargetData();
+});
+
+// Refresh button
+document.getElementById('refresh-data').addEventListener('click', () => {
+  const activeTab = document.querySelector('.tab-btn.active').id.replace('-tab', '');
+  if (activeTab === 'sensor') {
+    loadSensorData();
+  } else {
+    loadTargetData();
+  }
+});
+
+// Helper functions
+async function getSensorTotal() {
+  const response = await fetch('/api/sensor-data?page=1&per_page=1');
+  const data = await response.json();
+  return data.total;
+}
+
+async function getTargetTotal() {
+  const response = await fetch('/api/target-data?page=1&per_page=1');
+  const data = await response.json();
+  return data.total;
+}
+
+function updateTotalRecords(total) {
+  document.getElementById('total-records').textContent = `Total Records: ${total}`;
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  loadSensorData();
+});
+</script>
+{% endblock %}

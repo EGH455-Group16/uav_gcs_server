@@ -113,7 +113,7 @@ socket.on("sensor_update", (d) => {
   updateLastUpdateTime();
   
   // Add log entry for sensor update
-  addLogEntry("info", `Sensor data received: CO=${d.co_ppm}ppm, Temp=${d.temp_c}°C, Humidity=${d.humidity_pct}%`);
+  addLogEntry("info", `Sensor data received: CO=${d.co_ppm ? d.co_ppm.toFixed(3) : '--'}ppm, Temp=${d.temp_c ? d.temp_c.toFixed(2) : '--'}°C, Humidity=${d.humidity_pct ? d.humidity_pct.toFixed(2) : '--'}%`);
 });
 
 socket.on("target_detected", (e) => {
@@ -230,10 +230,80 @@ function addLogEntry(level, message) {
 }
 
 // Initialize with some sample logs
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   addLogEntry("info", "UAV GCS Dashboard initialized");
-  addLogEntry("info", "Waiting for sensor data...");
   
   // Initialize data counters from localStorage
   updateDataCounters();
+  
+  // Load latest sensor data from database
+  await loadLatestSensorData();
+  
+  // Load recent target detections from database
+  await loadRecentTargets();
 });
+
+// Load latest sensor data on page load
+async function loadLatestSensorData() {
+  try {
+    const response = await fetch('/api/latest-sensor');
+    const data = await response.json();
+    
+    if (data) {
+      // Update sensor displays with latest data
+      set("v-co", data.co_ppm ? Number(data.co_ppm).toFixed(2) : "--");
+      set("v-no2", data.no2_ppm ? Number(data.no2_ppm).toFixed(2) : "--");
+      set("v-nh3", data.nh3_ppm ? Number(data.nh3_ppm).toFixed(2) : "--");
+      set("v-light", data.light_lux ? Number(data.light_lux).toFixed(0) : "--");
+      set("v-temp", data.temp_c ? Number(data.temp_c).toFixed(1) : "--");
+      set("v-press", data.pressure_hpa ? Number(data.pressure_hpa).toFixed(1) : "--");
+      set("v-hum", data.humidity_pct ? Number(data.humidity_pct).toFixed(1) : "--");
+      
+      // Update last update time
+      const lastUpdate = new Date(data.ts);
+      const lastUpdateElement = document.getElementById("last-update");
+      if (lastUpdateElement) {
+        lastUpdateElement.textContent = `Last update: ${lastUpdate.toLocaleTimeString()}`;
+      }
+      
+      addLogEntry("info", `Loaded latest sensor data from database (${lastUpdate.toLocaleString()})`);
+    } else {
+      addLogEntry("info", "No sensor data found in database");
+    }
+  } catch (error) {
+    console.error('Error loading latest sensor data:', error);
+    addLogEntry("error", "Failed to load latest sensor data from database");
+  }
+}
+
+// Load recent target detections on page load
+async function loadRecentTargets() {
+  try {
+    const response = await fetch('/api/recent-targets');
+    const data = await response.json();
+    
+    if (data && data.length > 0) {
+      const targetList = document.getElementById("target-list");
+      targetList.innerHTML = ""; // Clear existing targets
+      
+      data.forEach(target => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <div class="target-item">
+            <span class="target-time">[${new Date(target.ts).toLocaleTimeString()}]</span>
+            <span class="target-type">${target.target_type.toUpperCase()}</span>
+            <span class="target-details">${JSON.stringify(target.details)}</span>
+          </div>
+        `;
+        targetList.appendChild(li);
+      });
+      
+      addLogEntry("info", `Loaded ${data.length} recent target detections from database`);
+    } else {
+      addLogEntry("info", "No target detections found in database");
+    }
+  } catch (error) {
+    console.error('Error loading recent targets:', error);
+    addLogEntry("error", "Failed to load recent target detections from database");
+  }
+}
