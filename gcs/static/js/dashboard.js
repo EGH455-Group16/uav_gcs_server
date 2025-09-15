@@ -19,34 +19,40 @@ socket.on("connect", () => {
   console.log("Connected to GCS stream");
   document.title = "UAV GCS - Connected";
   updateConnectionStatus("connected");
+  addLogEntry("info", "Connected to GCS stream");
 });
 
 socket.on("disconnect", (reason) => {
   console.log("Disconnected from GCS stream:", reason);
   document.title = "UAV GCS - Disconnected";
   updateConnectionStatus("disconnected");
+  addLogEntry("warning", `Disconnected from GCS stream: ${reason}`);
 });
 
 socket.on("connect_error", (error) => {
   console.error("Connection error:", error);
   document.title = "UAV GCS - Connection Error";
   updateConnectionStatus("error");
+  addLogEntry("error", `Connection error: ${error}`);
 });
 
 socket.on("reconnect", (attemptNumber) => {
   console.log("Reconnected after", attemptNumber, "attempts");
   document.title = "UAV GCS - Connected";
   updateConnectionStatus("connected");
+  addLogEntry("info", `Reconnected after ${attemptNumber} attempts`);
 });
 
 socket.on("reconnect_error", (error) => {
   console.error("Reconnection error:", error);
   updateConnectionStatus("error");
+  addLogEntry("error", `Reconnection error: ${error}`);
 });
 
 socket.on("reconnect_failed", () => {
   console.error("Failed to reconnect after maximum attempts");
   updateConnectionStatus("failed");
+  addLogEntry("error", "Failed to reconnect after maximum attempts");
 });
 
 // Connection status display
@@ -87,9 +93,9 @@ setInterval(() => {
   }
 }, 30000);
 
-// Data counters
-let sensorUpdateCount = 0;
-let targetDetectionCount = 0;
+// Data counters with persistence
+let sensorUpdateCount = parseInt(localStorage.getItem('sensorUpdateCount') || '0');
+let targetDetectionCount = parseInt(localStorage.getItem('targetDetectionCount') || '0');
 
 socket.on("sensor_update", (d) => {
   set("v-co", Number(d.co_ppm ?? NaN).toFixed(2));
@@ -102,8 +108,12 @@ socket.on("sensor_update", (d) => {
   
   // Update counters and timestamps
   sensorUpdateCount++;
+  localStorage.setItem('sensorUpdateCount', sensorUpdateCount.toString());
   updateDataCounters();
   updateLastUpdateTime();
+  
+  // Add log entry for sensor update
+  addLogEntry("info", `Sensor data received: CO=${d.co_ppm}ppm, Temp=${d.temp_c}°C, Humidity=${d.humidity_pct}%`);
 });
 
 socket.on("target_detected", (e) => {
@@ -125,7 +135,11 @@ socket.on("target_detected", (e) => {
 
   // Update counters
   targetDetectionCount++;
+  localStorage.setItem('targetDetectionCount', targetDetectionCount.toString());
   updateDataCounters();
+  
+  // Add log entry for target detection
+  addLogEntry("info", `Target detected: ${e.target_type.toUpperCase()} - ${JSON.stringify(e.details)}`);
 
   // Text-to-Speech
   const ttsOn = document.getElementById("tts-toggle").checked;
@@ -140,6 +154,7 @@ socket.on("target_detected", (e) => {
     }
     speechSynthesis.cancel();
     speechSynthesis.speak(new SpeechSynthesisUtterance(phrase));
+    addLogEntry("info", `TTS: ${phrase}`);
   }
 });
 
@@ -166,7 +181,9 @@ document.addEventListener("DOMContentLoaded", () => {
     clearTargetsBtn.addEventListener("click", () => {
       document.getElementById("target-list").innerHTML = "";
       targetDetectionCount = 0;
+      localStorage.setItem('targetDetectionCount', '0');
       updateDataCounters();
+      addLogEntry("info", "Target detection history cleared");
     });
   }
 
@@ -186,6 +203,19 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("Log level filter changed to:", e.target.value);
     });
   }
+
+  // Reset counters button
+  const resetCountersBtn = document.getElementById("reset-counters");
+  if (resetCountersBtn) {
+    resetCountersBtn.addEventListener("click", () => {
+      sensorUpdateCount = 0;
+      targetDetectionCount = 0;
+      localStorage.setItem('sensorUpdateCount', '0');
+      localStorage.setItem('targetDetectionCount', '0');
+      updateDataCounters();
+      addLogEntry("info", "All counters reset");
+    });
+  }
 });
 
 // Add some sample log entries
@@ -203,4 +233,7 @@ function addLogEntry(level, message) {
 document.addEventListener("DOMContentLoaded", () => {
   addLogEntry("info", "UAV GCS Dashboard initialized");
   addLogEntry("info", "Waiting for sensor data...");
+  
+  // Initialize data counters from localStorage
+  updateDataCounters();
 });
