@@ -23,50 +23,99 @@ A Flask-based web server for the EGH455 UAVPayloadTAQ-25 project that provides r
 
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.8+ (tested with Python 3.11.9)
 - pip (Python package manager)
+- Virtual environment (recommended)
 
 ### Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
 ```bash
 git clone <repository-url>
 cd uav_gcs_server
 ```
 
-2. Install dependencies:
+2. **Set up a virtual environment (recommended):**
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Windows (Command Prompt):
+venv\Scripts\activate
+# On Windows (PowerShell):
+venv\Scripts\Activate.ps1
+# On macOS/Linux:
+source venv/bin/activate
+
+# You should see (venv) in your command prompt when activated
+```
+
+**Note**: If you get an execution policy error in PowerShell, run:
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+3. **Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up environment variables (optional):
+4. **Set up environment variables (optional):**
 ```bash
 # Copy the example environment file
-cp .env.example .env
-# Edit .env with your configuration
+copy env.example .env
+# Edit .env with your configuration (optional - defaults work fine)
 ```
 
-4. Initialize the database:
+5. **Initialize the database:**
 ```bash
-# Set Flask app environment variable
+# Set Flask app environment variable (Windows)
 set FLASK_APP=app.py
 
-# Initialize database migrations
+# Set Flask app environment variable (macOS/Linux)
+export FLASK_APP=app.py
+
+# Initialize database migrations (only needed once)
 python -m flask db init
 
-# Create initial migration
+# Create initial migration (only needed once)
 python -m flask db migrate -m "Initial migration"
 
 # Apply migrations
 python -m flask db upgrade
 ```
 
-5. Run the application:
+6. **Run the application:**
 ```bash
 python app.py
 ```
 
 The server will start on `http://0.0.0.0:5000` and be accessible from any device on the LAN.
+
+### Quick Start for Windows Users
+
+If you're on Windows and want to get started quickly:
+
+1. Open PowerShell as Administrator
+2. Navigate to the project folder: `cd C:\path\to\uav_gcs_server`
+3. Create and activate virtual environment:
+   ```powershell
+   python -m venv venv
+   venv\Scripts\Activate.ps1
+   ```
+4. Install dependencies: `pip install -r requirements.txt`
+5. Set Flask app: `$env:FLASK_APP="app.py"`
+6. Initialize database: `python -m flask db upgrade`
+7. Run server: `python app.py`
+8. Open browser to: http://localhost:5000
+
+### Accessing the Dashboard
+
+Once the server is running, you can access:
+- **Main Dashboard**: http://localhost:5000/ or http://your-ip:5000/
+- **Health Check**: http://localhost:5000/health
+- **API Endpoints**: http://localhost:5000/api/sensors and http://localhost:5000/api/targets
 
 ## Configuration
 
@@ -229,13 +278,67 @@ CMD ["python", "app.py"]
 
 ### Common Issues
 
-1. **Database Connection Errors**: Check your `SQLALCHEMY_DATABASE_URI` configuration
-2. **Socket.IO Connection Issues**: Verify CORS settings and firewall configuration
-3. **TTS Not Working**: Ensure browser supports `speechSynthesis` API
+1. **"Dead Link" or Connection Issues**:
+   - Ensure the server is running: `python app.py`
+   - Check if port 5000 is available: `netstat -an | findstr :5000`
+   - Try accessing http://localhost:5000/health first
+   - Check Windows Firewall settings if accessing from another device
+
+2. **Database Connection Errors**:
+   - Ensure database is initialized: `python -m flask db upgrade`
+   - Check your `SQLALCHEMY_DATABASE_URI` configuration
+   - Verify the `instance/` directory exists and is writable
+
+3. **Socket.IO Connection Issues**:
+   - Check browser console for WebSocket connection errors
+   - Verify CORS settings in your `.env` file
+   - Ensure firewall allows WebSocket connections on port 5000
+   - Try refreshing the page if connection status shows "Disconnected"
+
+4. **Dependencies Not Found**:
+   - Ensure virtual environment is activated
+   - Reinstall dependencies: `pip install -r requirements.txt`
+   - Check Python version: `python --version` (should be 3.8+)
+
+5. **TTS Not Working**:
+   - Ensure browser supports `speechSynthesis` API
+   - Check if TTS is enabled in the dashboard controls
+   - Try in a different browser (Chrome/Firefox recommended)
+
+6. **Migration Errors**:
+   - If migrations fail, try: `python -m flask db stamp head`
+   - Then: `python -m flask db upgrade`
+   - For fresh start: delete `instance/uav_gcs.db` and run migrations again
+
+### Verification Steps
+
+To verify everything is working:
+
+1. **Start the server**: `python app.py`
+2. **Check health endpoint**: Visit http://localhost:5000/health
+3. **Check main dashboard**: Visit http://localhost:5000/
+4. **Check browser console**: Look for "Connected to GCS stream" message
+5. **Test API**: Send a POST request to http://localhost:5000/api/sensors with sample data
+
+### Sample API Test
+
+Test the sensor API with curl:
+```bash
+curl -X POST http://localhost:5000/api/sensors \
+  -H "Content-Type: application/json" \
+  -d '{
+    "timestamp": "2025-01-15T10:30:00Z",
+    "co_ppm": 1.5,
+    "no2_ppm": 0.8,
+    "temp_c": 22.5,
+    "humidity_pct": 60.0,
+    "source": "test"
+  }'
+```
 
 ### Logs
 
-Application logs are written to stdout. Check the console output for error messages and request logs.
+Application logs are written to stdout. Check the console output for error messages and request logs. The dashboard also shows connection status in the top-right corner.
 
 ## License
 
