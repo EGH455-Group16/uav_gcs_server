@@ -1,15 +1,15 @@
 from datetime import datetime
+
 from .. import db
 from ..models import SensorData, TargetDetection
 
+
 def ingest_sensor_json(payload: dict) -> SensorData:
-    # Parse timestamp if provided, otherwise use server time
     ts = datetime.utcnow()
     if "timestamp" in payload:
         try:
             ts = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
         except (ValueError, TypeError):
-            # If timestamp parsing fails, use server time
             pass
     
     rec = SensorData(
@@ -27,14 +27,13 @@ def ingest_sensor_json(payload: dict) -> SensorData:
     db.session.commit()
     return rec
 
+
 def ingest_target_json(payload: dict) -> TargetDetection:
-    # Parse timestamp if provided, otherwise use server time
     ts = datetime.utcnow()
     if "timestamp" in payload:
         try:
             ts = datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
         except (ValueError, TypeError):
-            # If timestamp parsing fails, use server time
             pass
     
     rec = TargetDetection(

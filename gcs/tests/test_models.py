@@ -1,14 +1,12 @@
-"""Tests for models module"""
-
 import pytest
 from datetime import datetime
+
 from gcs import create_app, db
 from gcs.models import SensorData, TargetDetection, SystemLog
 
 
 @pytest.fixture
 def app():
-    """Create test app with in-memory SQLite database"""
     app = create_app()
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['TESTING'] = True
@@ -20,7 +18,6 @@ def app():
 
 
 def test_sensor_data_creation(app):
-    """Test SensorData model creation"""
     with app.app_context():
         sensor = SensorData(
             co_ppm=1.5,
@@ -49,7 +46,6 @@ def test_sensor_data_creation(app):
 
 
 def test_sensor_data_defaults(app):
-    """Test SensorData model with default values"""
     with app.app_context():
         sensor = SensorData()
         
@@ -63,7 +59,6 @@ def test_sensor_data_defaults(app):
 
 
 def test_target_detection_creation(app):
-    """Test TargetDetection model creation"""
     with app.app_context():
         target = TargetDetection(
             target_type="gauge",
@@ -82,7 +77,6 @@ def test_target_detection_creation(app):
 
 
 def test_target_detection_defaults(app):
-    """Test TargetDetection model with default values"""
     with app.app_context():
         target = TargetDetection()
         
@@ -97,7 +91,6 @@ def test_target_detection_defaults(app):
 
 
 def test_system_log_creation(app):
-    """Test SystemLog model creation"""
     with app.app_context():
         log = SystemLog(
             level="INFO",
@@ -114,7 +107,6 @@ def test_system_log_creation(app):
 
 
 def test_system_log_defaults(app):
-    """Test SystemLog model with default values"""
     with app.app_context():
         log = SystemLog()
         
@@ -128,7 +120,6 @@ def test_system_log_defaults(app):
 
 
 def test_database_relationships(app):
-    """Test that all models can coexist in the database"""
     with app.app_context():
         # Create one of each model
         sensor = SensorData(co_ppm=1.0, source="test")
@@ -152,7 +143,6 @@ def test_database_relationships(app):
 
 
 def test_timestamp_indexing(app):
-    """Test that timestamp fields are properly indexed"""
     with app.app_context():
         # Create multiple records with different timestamps
         now = datetime.utcnow()

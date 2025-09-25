@@ -1,15 +1,13 @@
-"""Tests for data_handler module"""
-
 import pytest
 from datetime import datetime
+
 from gcs import create_app, db
-from gcs.services.data_handler import ingest_sensor_json, ingest_target_json
 from gcs.models import SensorData, TargetDetection
+from gcs.services.data_handler import ingest_sensor_json, ingest_target_json
 
 
 @pytest.fixture
 def app():
-    """Create test app with in-memory SQLite database"""
     app = create_app()
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['TESTING'] = True
@@ -21,7 +19,6 @@ def app():
 
 
 def test_ingest_sensor_json_valid_data(app):
-    """Test sensor data ingestion with valid data"""
     with app.app_context():
         payload = {
             "timestamp": "2025-01-15T10:30:00Z",
@@ -50,7 +47,6 @@ def test_ingest_sensor_json_valid_data(app):
 
 
 def test_ingest_sensor_json_minimal_data(app):
-    """Test sensor data ingestion with minimal required data"""
     with app.app_context():
         payload = {
             "co_ppm": 1.0
@@ -65,7 +61,6 @@ def test_ingest_sensor_json_minimal_data(app):
 
 
 def test_ingest_sensor_json_invalid_timestamp(app):
-    """Test sensor data ingestion with invalid timestamp falls back to server time"""
     with app.app_context():
         payload = {
             "timestamp": "invalid-timestamp",
@@ -80,7 +75,6 @@ def test_ingest_sensor_json_invalid_timestamp(app):
 
 
 def test_ingest_target_json_valid_data(app):
-    """Test target detection ingestion with valid data"""
     with app.app_context():
         payload = {
             "timestamp": "2025-01-15T10:30:00Z",
@@ -99,7 +93,6 @@ def test_ingest_target_json_valid_data(app):
 
 
 def test_ingest_target_json_minimal_data(app):
-    """Test target detection ingestion with minimal required data"""
     with app.app_context():
         payload = {
             "target_type": "valve"
@@ -114,7 +107,6 @@ def test_ingest_target_json_minimal_data(app):
 
 
 def test_ingest_target_json_invalid_timestamp(app):
-    """Test target detection ingestion with invalid timestamp falls back to server time"""
     with app.app_context():
         payload = {
             "timestamp": "invalid-timestamp",

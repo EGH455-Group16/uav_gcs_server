@@ -1,17 +1,16 @@
-"""Tests for routes module"""
-
-import pytest
-import json
 import base64
+import io
+import json
 import os
 import tempfile
-import io
+
+import pytest
+
 from gcs import create_app, db
 
 
 @pytest.fixture
 def app():
-    """Create test app with in-memory SQLite database"""
     app = create_app()
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     app.config['TESTING'] = True
@@ -24,12 +23,10 @@ def app():
 
 @pytest.fixture
 def client(app):
-    """Create test client"""
     return app.test_client()
 
 
 def test_health_endpoint(client):
-    """Test health check endpoint"""
     response = client.get('/health')
     assert response.status_code == 200
     
@@ -40,14 +37,12 @@ def test_health_endpoint(client):
 
 
 def test_dashboard_endpoint(client):
-    """Test dashboard endpoint"""
     response = client.get('/')
     assert response.status_code == 200
     assert b'UAV GCS' in response.data or b'Sensor Data' in response.data
 
 
 def test_sensor_api_valid_data(client):
-    """Test sensor API with valid data"""
     payload = {
         "timestamp": "2025-01-15T10:30:00Z",
         "co_ppm": 1.5,
@@ -71,7 +66,6 @@ def test_sensor_api_valid_data(client):
 
 
 def test_sensor_api_minimal_data(client):
-    """Test sensor API with minimal data"""
     payload = {
         "co_ppm": 1.0
     }
@@ -86,7 +80,6 @@ def test_sensor_api_minimal_data(client):
 
 
 def test_sensor_api_no_data(client):
-    """Test sensor API with no sensor readings"""
     payload = {
         "source": "test"
     }
@@ -102,7 +95,6 @@ def test_sensor_api_no_data(client):
 
 
 def test_sensor_api_invalid_content_type(client):
-    """Test sensor API with invalid content type"""
     response = client.post('/api/sensors', data="not json")
     assert response.status_code == 400
     data = json.loads(response.data)
@@ -110,7 +102,6 @@ def test_sensor_api_invalid_content_type(client):
 
 
 def test_sensor_api_invalid_json(client):
-    """Test sensor API with invalid JSON"""
     response = client.post('/api/sensors', 
                           data="invalid json",
                           content_type='application/json')
@@ -120,7 +111,6 @@ def test_sensor_api_invalid_json(client):
 
 
 def test_sensor_api_invalid_numeric_value(client):
-    """Test sensor API with invalid numeric value"""
     payload = {
         "co_ppm": "not a number"
     }
@@ -135,7 +125,6 @@ def test_sensor_api_invalid_numeric_value(client):
 
 
 def test_target_api_valid_data(client):
-    """Test target API with valid data"""
     payload = {
         "timestamp": "2025-01-15T10:30:00Z",
         "target_type": "gauge",
@@ -154,7 +143,6 @@ def test_target_api_valid_data(client):
 
 
 def test_target_api_minimal_data(client):
-    """Test target API with minimal data"""
     payload = {
         "target_type": "valve"
     }
@@ -169,7 +157,6 @@ def test_target_api_minimal_data(client):
 
 
 def test_target_api_missing_target_type(client):
-    """Test target API with missing target_type"""
     payload = {
         "details": {"value": 1.8}
     }
@@ -184,7 +171,6 @@ def test_target_api_missing_target_type(client):
 
 
 def test_target_api_invalid_target_type(client):
-    """Test target API with invalid target_type"""
     payload = {
         "target_type": "invalid_type"
     }
@@ -199,7 +185,6 @@ def test_target_api_invalid_target_type(client):
 
 
 def test_target_api_invalid_details_type(client):
-    """Test target API with invalid details type"""
     payload = {
         "target_type": "gauge",
         "details": "not an object"
@@ -215,7 +200,6 @@ def test_target_api_invalid_details_type(client):
 
 
 def test_target_api_invalid_content_type(client):
-    """Test target API with invalid content type"""
     response = client.post('/api/targets', data="not json")
     assert response.status_code == 400
     data = json.loads(response.data)
@@ -223,7 +207,6 @@ def test_target_api_invalid_content_type(client):
 
 
 def test_target_api_invalid_json(client):
-    """Test target API with invalid JSON"""
     response = client.post('/api/targets', 
                           data="invalid json",
                           content_type='application/json')
@@ -231,7 +214,6 @@ def test_target_api_invalid_json(client):
 
 
 def test_target_api_multipart_upload(client):
-    """Test target API with multipart/form-data upload"""
     # Create a small test image
     test_image_data = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x0c\x03\x01\x00\x02\x11\x03\x11\x00\x3f\x00\xaa\xff\xd9'
     
@@ -255,7 +237,6 @@ def test_target_api_multipart_upload(client):
 
 
 def test_target_api_json_base64_upload(client):
-    """Test target API with JSON base64 upload"""
     # Create a small test image and encode as base64
     test_image_data = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x0c\x03\x01\x00\x02\x11\x03\x11\x00\x3f\x00\xaa\xff\xd9'
     image_b64 = base64.b64encode(test_image_data).decode('utf-8')
@@ -280,7 +261,6 @@ def test_target_api_json_base64_upload(client):
 
 
 def test_target_api_missing_file(client):
-    """Test target API with missing file"""
     data = {
         'target_type': 'valve',
         'details': '{"state": "open"}'
@@ -296,7 +276,6 @@ def test_target_api_missing_file(client):
 
 
 def test_target_api_invalid_base64(client):
-    """Test target API with invalid base64"""
     payload = {
         'image_b64': 'invalid_base64_data',
         'target_type': 'valve'
@@ -312,7 +291,6 @@ def test_target_api_invalid_base64(client):
 
 
 def test_target_api_missing_image_b64(client):
-    """Test target API with missing image_b64"""
     payload = {
         'target_type': 'valve',
         'details': {'state': 'open'}
