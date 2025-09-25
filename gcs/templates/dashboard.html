@@ -6,15 +6,19 @@
     <div class="status-indicators">
       <span id="last-update">Last update: Never</span>
       <span id="data-count">Records: 0</span>
-      <button id="reset-counters" class="btn-secondary">Reset Counters</button>
     </div>
   </header>
 
-  <section class="dashboard-main">
-    <div class="dashboard-row">
+  <section class="main-dashboard">
+    <div class="dashboard-columns">
       <!-- Left column: Sensor Data -->
-      <div class="sensor-column">
-        <h2>Sensor Data (Live)</h2>
+      <div class="sensors-column">
+        <div class="section-header">
+          <h2>Sensor Data (Live)</h2>
+          <div class="section-controls">
+            <button id="reset-counters" class="btn-secondary">Reset Counters</button>
+          </div>
+        </div>
         <div class="grid">
           <div class="card gas-sensor">
             <h3>CO (ppm)</h3>
@@ -54,44 +58,50 @@
         </div>
       </div>
 
-      <!-- Right column: Target Detections (Live) -->
-      <div class="detection-column">
-        <h2>Target Detections (Live)</h2>
-        <div class="card detection-card">
-          <img id="det-img" src="/static/targets/latest.jpg" alt="Latest detection" class="detection-image">
-          <div id="det-meta" class="detection-meta">Type: -- | ts: --</div>
+      <!-- Right column: Target Detections -->
+      <div class="targets-column">
+        <div class="section-header">
+          <h2>Target Detections (Live + History)</h2>
+          <div class="section-controls">
+            <label class="tts-control">
+              <input type="checkbox" id="tts-toggle" checked>
+              <span class="checkmark"></span>
+              Enable Text-to-Speech
+            </label>
+            <button id="clear-targets" class="btn-secondary">Clear History</button>
+          </div>
+        </div>
+        <div class="targets-content">
+          <div class="live-detection">
+            <div class="card detection-card">
+              <img id="det-img" src="/static/targets/latest.jpg" alt="Latest detection" class="detection-image">
+              <div id="det-meta" class="detection-meta">Type: -- | ts: --</div>
+            </div>
+          </div>
+          <div class="target-history">
+            <div class="target-list-container">
+              <ul id="target-list" class="target-list"></ul>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="targets" class="targets-section">
-    <h2>Target Detections (Live)</h2>
-    <div class="target-controls">
-      <label class="tts-control">
-        <input type="checkbox" id="tts-toggle" checked>
-        <span class="checkmark"></span>
-        Enable Text-to-Speech
-      </label>
-      <button id="clear-targets" class="btn-secondary">Clear History</button>
-    </div>
-    <div class="target-list-container">
-      <ul id="target-list" class="target-list"></ul>
-    </div>
-  </section>
-
   <section id="logs" class="logs-section">
-    <h2>System Logs</h2>
-    <div class="log-controls">
-      <button id="clear-logs" class="btn-secondary">Clear Logs</button>
-      <label class="log-level-filter">
-        <select id="log-level">
-          <option value="all">All Levels</option>
-          <option value="info">Info+</option>
-          <option value="warning">Warning+</option>
-          <option value="error">Errors Only</option>
-        </select>
-      </label>
+    <div class="section-header">
+      <h2>System Logs</h2>
+      <div class="section-controls">
+        <label class="log-level-filter">
+          <select id="log-level">
+            <option value="all">All Levels</option>
+            <option value="info">Info+</option>
+            <option value="warning">Warning+</option>
+            <option value="error">Errors Only</option>
+          </select>
+        </label>
+        <button id="clear-logs" class="btn-secondary">Clear Logs</button>
+      </div>
     </div>
     <div id="logs-area" class="logs-area"></div>
   </section>
@@ -114,56 +124,84 @@
   color: #666;
 }
 
- /* Dashboard layout */
- .dashboard-main {
-   margin-bottom: 2rem;
- }
- 
- .dashboard-row {
-   display: grid;
-   grid-template-columns: 2fr 1fr;
-   gap: 2rem;
-   align-items: start;
- }
- 
- @media (max-width: 768px) {
-   .dashboard-row {
-     grid-template-columns: 1fr;
-     gap: 1rem;
-   }
- }
- 
- .sensor-column .grid {
-   display: grid;
-   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-   gap: 1rem;
- }
- 
- .detection-column {
-   min-width: 0; /* Prevent overflow */
- }
- 
- .detection-card {
-   text-align: center;
- }
- 
- .detection-image {
-   max-width: 100%;
-   height: auto;
-   border-radius: 4px;
-   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-   margin-bottom: 0.5rem;
- }
- 
- .detection-meta {
-   font-family: monospace;
-   font-size: 0.9rem;
-   color: #666;
-   background: #f5f5f5;
-   padding: 0.5rem;
-   border-radius: 4px;
-   border: 1px solid #e0e0e0;
- }
+/* Main dashboard layout */
+.main-dashboard {
+  margin-bottom: 2rem;
+}
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-columns {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+/* Section headers with controls */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.section-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* Sensors column */
+.sensors-column .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+/* Targets column */
+.targets-column {
+  min-width: 0; /* Prevent overflow */
+}
+
+.targets-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.live-detection {
+  min-width: 0;
+}
+
+.detection-card {
+  text-align: center;
+}
+
+.detection-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 0.5rem;
+}
+
+.detection-meta {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #666;
+  background: #f5f5f5;
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
 
 .card {
   background: white;
@@ -206,17 +244,10 @@
   text-transform: lowercase;
 }
 
-.targets-section, .logs-section {
+.logs-section {
   margin-top: 2rem;
   padding-top: 2rem;
   border-top: 1px solid #e0e0e0;
-}
-
-.target-controls, .log-controls {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  margin-bottom: 1rem;
 }
 
 .tts-control {
