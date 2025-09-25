@@ -2,8 +2,11 @@ from flask import Blueprint, request, jsonify, render_template
 from .services.data_handler import ingest_sensor_json, ingest_target_json
 from .services.notifier import push_sensor_update, push_target_detected
 from .services.logger import log_request, log_error
+from .services.image_store import ensure_targets_dir, save_image_bytes, decode_b64_image, parse_details, get_image_url
 from .middleware import api_key_required, cors_headers
 import logging
+import os
+from datetime import datetime
 
 bp = Blueprint("routes", __name__)
 
@@ -165,29 +168,95 @@ def api_sensors():
 @api_key_required
 @cors_headers
 def api_targets():
+    """
+    Robust POST /api/targets endpoint that accepts either:
+    - multipart/form-data with file (JPEG/PNG) + form fields
+    - application/json with image_b64 (data URL or raw base64) + fields
+    """
     try:
-        # Validate JSON content type
-        if not request.is_json:
-            return jsonify({"error": "Content-Type must be application/json"}), 400
+        # Get current timestamp
+        ts = datetime.utcnow()
+        target_type = None
+        details = {}
+        image_url = get_image_url()
         
-        data = request.get_json(silent=False)
-        if data is None:
-            return jsonify({"error": "Invalid JSON payload"}), 400
+        # Branch by Content-Type
+        if request.content_type and "multipart/form-data" in request.content_type:
+            # Handle multipart/form-data
+            if "file" not in request.files:
+                return jsonify({"error": "No file provided"}), 400
+            
+            file = request.files["file"]
+            if file.filename == "":
+                return jsonify({"error": "No file selected"}), 400
+            
+            # Validate file type
+            if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+                return jsonify({"error": "File must be JPEG or PNG"}), 400
+            
+            # Get form fields
+            target_type = request.form.get("target_type", "unknown")
+            details_str = request.form.get("details", "{}")
+            ts_str = request.form.get("ts")
+            
+            # Parse timestamp if provided
+            if ts_str:
+                try:
+                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    pass  # Use server time if parsing fails
+            
+            # Parse details
+            details = parse_details(details_str)
+            
+            # Save file
+            img_bytes = file.read()
+            save_image_bytes(img_bytes, "latest.jpg")
+            
+        elif request.is_json:
+            # Handle application/json
+            data = request.get_json(silent=False)
+            if data is None:
+                return jsonify({"error": "Invalid JSON payload"}), 400
+            
+            # Validate required fields
+            if "image_b64" not in data:
+                return jsonify({"error": "image_b64 is required"}), 400
+            
+            target_type = data.get("target_type", "unknown")
+            details = parse_details(data.get("details", {}))
+            ts_str = data.get("ts")
+            
+            # Parse timestamp if provided
+            if ts_str:
+                try:
+                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    pass  # Use server time if parsing fails
+            
+            # Decode and save image
+            try:
+                img_bytes = decode_b64_image(data["image_b64"])
+                save_image_bytes(img_bytes, "latest.jpg")
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
+                
+        else:
+            return jsonify({"error": "Content-Type must be multipart/form-data or application/json"}), 400
         
-        # Validate required fields
-        if "target_type" not in data:
-            return jsonify({"error": "target_type is required"}), 400
+        # Create target detection record
+        from .models import TargetDetection
+        rec = TargetDetection(
+            ts=ts,
+            target_type=target_type,
+            details_json=details,
+            image_url=image_url
+        )
         
-        # Validate target_type enum
-        valid_types = {"valve", "gauge", "aruco"}
-        if data["target_type"] not in valid_types:
-            return jsonify({"error": f"target_type must be one of: {', '.join(valid_types)}"}), 400
+        from . import db
+        db.session.add(rec)
+        db.session.commit()
         
-        # Validate details is object if provided
-        if "details" in data and not isinstance(data["details"], dict):
-            return jsonify({"error": "details must be an object"}), 400
-        
-        rec = ingest_target_json(data)
         log_request(request, 201)
         
         # Emit target detection via Socket.IO
@@ -198,7 +267,12 @@ def api_targets():
             "image_url": rec.image_url
         })
         
-        return jsonify({"status": "ok", "id": rec.id}), 201
+        return jsonify({
+            "url": image_url,
+            "ts": rec.ts.isoformat(),
+            "target_type": rec.target_type,
+            "details": rec.details_json
+        }), 201
         
     except Exception as e:
         log_error(f"Target API error: {str(e)}")

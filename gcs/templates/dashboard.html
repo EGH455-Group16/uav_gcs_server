@@ -10,43 +10,57 @@
     </div>
   </header>
 
-  <section id="sensors" class="sensor-grid">
-    <h2>Sensor Data (Live)</h2>
-    <div class="grid">
-      <div class="card gas-sensor">
-        <h3>CO (ppm)</h3>
-        <div id="v-co" class="value">--</div>
-        <div class="unit">parts per million</div>
+  <section class="dashboard-main">
+    <div class="dashboard-row">
+      <!-- Left column: Sensor Data -->
+      <div class="sensor-column">
+        <h2>Sensor Data (Live)</h2>
+        <div class="grid">
+          <div class="card gas-sensor">
+            <h3>CO (ppm)</h3>
+            <div id="v-co" class="value">--</div>
+            <div class="unit">parts per million</div>
+          </div>
+          <div class="card gas-sensor">
+            <h3>NO₂ (ppm)</h3>
+            <div id="v-no2" class="value">--</div>
+            <div class="unit">parts per million</div>
+          </div>
+          <div class="card gas-sensor">
+            <h3>NH₃ (ppm)</h3>
+            <div id="v-nh3" class="value">--</div>
+            <div class="unit">parts per million</div>
+          </div>
+          <div class="card env-sensor">
+            <h3>Light (lux)</h3>
+            <div id="v-light" class="value">--</div>
+            <div class="unit">lux</div>
+          </div>
+          <div class="card env-sensor">
+            <h3>Temp (°C)</h3>
+            <div id="v-temp" class="value">--</div>
+            <div class="unit">celsius</div>
+          </div>
+          <div class="card env-sensor">
+            <h3>Pressure (hPa)</h3>
+            <div id="v-press" class="value">--</div>
+            <div class="unit">hectopascal</div>
+          </div>
+          <div class="card env-sensor">
+            <h3>Humidity (%)</h3>
+            <div id="v-hum" class="value">--</div>
+            <div class="unit">percent</div>
+          </div>
+        </div>
       </div>
-      <div class="card gas-sensor">
-        <h3>NO₂ (ppm)</h3>
-        <div id="v-no2" class="value">--</div>
-        <div class="unit">parts per million</div>
-      </div>
-      <div class="card gas-sensor">
-        <h3>NH₃ (ppm)</h3>
-        <div id="v-nh3" class="value">--</div>
-        <div class="unit">parts per million</div>
-      </div>
-      <div class="card env-sensor">
-        <h3>Light (lux)</h3>
-        <div id="v-light" class="value">--</div>
-        <div class="unit">lux</div>
-      </div>
-      <div class="card env-sensor">
-        <h3>Temp (°C)</h3>
-        <div id="v-temp" class="value">--</div>
-        <div class="unit">celsius</div>
-      </div>
-      <div class="card env-sensor">
-        <h3>Pressure (hPa)</h3>
-        <div id="v-press" class="value">--</div>
-        <div class="unit">hectopascal</div>
-      </div>
-      <div class="card env-sensor">
-        <h3>Humidity (%)</h3>
-        <div id="v-hum" class="value">--</div>
-        <div class="unit">percent</div>
+
+      <!-- Right column: Target Detections (Live) -->
+      <div class="detection-column">
+        <h2>Target Detections (Live)</h2>
+        <div class="card detection-card">
+          <img id="det-img" src="/static/targets/latest.jpg" alt="Latest detection" class="detection-image">
+          <div id="det-meta" class="detection-meta">Type: -- | ts: --</div>
+        </div>
       </div>
     </div>
   </section>
@@ -100,12 +114,56 @@
   color: #666;
 }
 
-.sensor-grid .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
+ /* Dashboard layout */
+ .dashboard-main {
+   margin-bottom: 2rem;
+ }
+ 
+ .dashboard-row {
+   display: grid;
+   grid-template-columns: 2fr 1fr;
+   gap: 2rem;
+   align-items: start;
+ }
+ 
+ @media (max-width: 768px) {
+   .dashboard-row {
+     grid-template-columns: 1fr;
+     gap: 1rem;
+   }
+ }
+ 
+ .sensor-column .grid {
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+   gap: 1rem;
+ }
+ 
+ .detection-column {
+   min-width: 0; /* Prevent overflow */
+ }
+ 
+ .detection-card {
+   text-align: center;
+ }
+ 
+ .detection-image {
+   max-width: 100%;
+   height: auto;
+   border-radius: 4px;
+   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+   margin-bottom: 0.5rem;
+ }
+ 
+ .detection-meta {
+   font-family: monospace;
+   font-size: 0.9rem;
+   color: #666;
+   background: #f5f5f5;
+   padding: 0.5rem;
+   border-radius: 4px;
+   border: 1px solid #e0e0e0;
+ }
 
 .card {
   background: white;

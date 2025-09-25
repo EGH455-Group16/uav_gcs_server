@@ -14,6 +14,32 @@ console.log("Attempting to connect to Socket.IO namespace:", ns);
 
 function set(id, v){ document.getElementById(id).textContent = v; }
 
+// Refresh detection image with cache busting and optional meta update
+function refreshDetection(meta) {
+  const img = document.getElementById('det-img');
+  if (img) {
+    img.src = '/static/targets/latest.jpg?bust=' + Date.now(); // cache-bust
+    
+    // Handle image load errors
+    img.onerror = function() {
+      console.log("Detection image not available or failed to load");
+    };
+    
+    img.onload = function() {
+      console.log("Detection image refreshed successfully");
+    };
+  }
+
+  if (meta) {
+    const el = document.getElementById('det-meta');
+    if (el) {
+      const { target_type, ts, details } = meta;
+      const confidence = details?.confidence ? ` | conf: ${details.confidence}` : '';
+      el.textContent = `Type: ${target_type ?? '--'} | ts: ${ts ?? '--'}${confidence}`;
+    }
+  }
+}
+
 // Connection status indicator
 socket.on("connect", () => {
   console.log("Connected to GCS stream");
@@ -141,6 +167,9 @@ socket.on("target_detected", (e) => {
   // Add log entry for target detection
   addLogEntry("info", `Target detected: ${e.target_type.toUpperCase()} - ${JSON.stringify(e.details)}`);
 
+  // Refresh detection image and metadata
+  refreshDetection(e);
+
   // Text-to-Speech
   const ttsOn = document.getElementById("tts-toggle").checked;
   if (ttsOn && "speechSynthesis" in window) {
@@ -241,6 +270,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   // Load recent target detections from database
   await loadRecentTargets();
+  
+  // Initialize detection image
+  refreshDetection();
+  
+  // Fallback polling for detection image
+  setInterval(() => refreshDetection(), 3500);
 });
 
 // Load latest sensor data on page load

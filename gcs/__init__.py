@@ -30,4 +30,9 @@ def create_app():
 
     app.register_blueprint(routes_bp)
     app.register_blueprint(sockets_bp)
+    
+    # Initialize database tables
+    with app.app_context():
+        db.create_all()
+    
     return app

@@ -1,0 +1,47 @@
+/* Spacing and layout; minimal and neutral */
+:root {
+  --gutter: 24px;
+  --gutter-sm: 16px;
+  --card-pad: 16px;
+  --section-gap: 24px;
+  --border: rgba(0,0,0,.12);
+  --muted: rgba(0,0,0,.6);
+}
+
+@media (max-width: 768px) {
+  :root { --gutter: var(--gutter-sm); }
+}
+
+.gcs-wrap { padding-left: var(--gutter); padding-right: var(--gutter); }
+.gcs-section { margin-top: var(--section-gap); }
+.gcs-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: var(--card-pad);
+  background: #fff;
+}
+.gcs-row { display: grid; gap: 16px; }
+@media (min-width: 1024px) { .gcs-row--2 { grid-template-columns: 1fr 1fr; } }
+
+.gcs-h2 { font-size: 1.25rem; margin: 0 0 8px 0; }
+.gcs-muted { color: var(--muted); }
+
+/* Tables */
+.gcs-table-wrap { overflow-x: auto; }
+.gcs-table { width: 100%; border-collapse: collapse; }
+.gcs-table th, .gcs-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.gcs-table thead th { position: sticky; top: 0; background: #fafafa; z-index: 1; }
+.gcs-table tbody tr:nth-child(odd) { background: #fafafa; }
+
+/* Sensor value colors - only the numbers are colored */
+.sensor-value {
+  font-weight: bold;
+}
+
+#co_ppm.sensor-value { color: #e74c3c; }        /* red / warning tone */
+#no2_ppm.sensor-value { color: #f39c12; }       /* orange */
+#nh3_ppm.sensor-value { color: #9b59b6; }       /* purple */
+#light_lux.sensor-value { color: #27ae60; }     /* green */
+#temp_c.sensor-value { color: #3498db; }        /* blue */
+#pressure_hpa.sensor-value { color: #1abc9c; }  /* teal / cyan */
+#humidity_pct.sensor-value { color: #3f51b5; }  /* indigo */

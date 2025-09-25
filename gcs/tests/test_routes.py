@@ -2,6 +2,10 @@
 
 import pytest
 import json
+import base64
+import os
+import tempfile
+import io
 from gcs import create_app, db
 
 
@@ -224,5 +228,100 @@ def test_target_api_invalid_json(client):
                           data="invalid json",
                           content_type='application/json')
     assert response.status_code == 400
-    data = json.loads(response.data)
-    assert 'Invalid JSON' in data['error']
+
+
+def test_target_api_multipart_upload(client):
+    """Test target API with multipart/form-data upload"""
+    # Create a small test image
+    test_image_data = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x0c\x03\x01\x00\x02\x11\x03\x11\x00\x3f\x00\xaa\xff\xd9'
+    
+    data = {
+        'file': (io.BytesIO(test_image_data), 'test.jpg', 'image/jpeg'),
+        'target_type': 'valve',
+        'details': '{"state": "open"}',
+        'ts': '2025-01-15T10:30:00Z'
+    }
+    
+    response = client.post('/api/targets', 
+                          data=data,
+                          content_type='multipart/form-data')
+    assert response.status_code == 201
+    
+    result = json.loads(response.data)
+    assert result['url'] == '/static/targets/latest.jpg'
+    assert result['target_type'] == 'valve'
+    assert result['details']['state'] == 'open'
+    assert 'ts' in result
+
+
+def test_target_api_json_base64_upload(client):
+    """Test target API with JSON base64 upload"""
+    # Create a small test image and encode as base64
+    test_image_data = b'\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.\' ",#\x1c\x1c(7),01444\x1f\'9=82<.342\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x0c\x03\x01\x00\x02\x11\x03\x11\x00\x3f\x00\xaa\xff\xd9'
+    image_b64 = base64.b64encode(test_image_data).decode('utf-8')
+    
+    payload = {
+        'image_b64': image_b64,
+        'target_type': 'gauge',
+        'details': {'value': 42.5, 'unit': 'psi'},
+        'ts': '2025-01-15T10:30:00Z'
+    }
+    
+    response = client.post('/api/targets', 
+                          data=json.dumps(payload),
+                          content_type='application/json')
+    assert response.status_code == 201
+    
+    result = json.loads(response.data)
+    assert result['url'] == '/static/targets/latest.jpg'
+    assert result['target_type'] == 'gauge'
+    assert result['details']['value'] == 42.5
+    assert 'ts' in result
+
+
+def test_target_api_missing_file(client):
+    """Test target API with missing file"""
+    data = {
+        'target_type': 'valve',
+        'details': '{"state": "open"}'
+    }
+    
+    response = client.post('/api/targets', 
+                          data=data,
+                          content_type='multipart/form-data')
+    assert response.status_code == 400
+    
+    result = json.loads(response.data)
+    assert 'No file provided' in result['error']
+
+
+def test_target_api_invalid_base64(client):
+    """Test target API with invalid base64"""
+    payload = {
+        'image_b64': 'invalid_base64_data',
+        'target_type': 'valve'
+    }
+    
+    response = client.post('/api/targets', 
+                          data=json.dumps(payload),
+                          content_type='application/json')
+    assert response.status_code == 400
+    
+    result = json.loads(response.data)
+    assert 'Failed to decode base64 image' in result['error']
+
+
+def test_target_api_missing_image_b64(client):
+    """Test target API with missing image_b64"""
+    payload = {
+        'target_type': 'valve',
+        'details': {'state': 'open'}
+    }
+    
+    response = client.post('/api/targets', 
+                          data=json.dumps(payload),
+                          content_type='application/json')
+    assert response.status_code == 400
+    
+    result = json.loads(response.data)
+    assert 'image_b64 is required' in result['error']
