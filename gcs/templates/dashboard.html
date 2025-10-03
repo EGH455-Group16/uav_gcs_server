@@ -86,6 +86,32 @@
         </div>
     </section>
 
+    <section id="device-control" class="device-control-section">
+        <div class="section-header">
+            <h2>Device Control</h2>
+            <div class="section-controls">
+                <div class="device-selector">
+                    <label for="device-id">Device ID:</label>
+                    <input type="text" id="device-id" placeholder="pi_device_001" value="pi_device_001">
+                </div>
+            </div>
+        </div>
+        <div class="display-controls">
+            <div class="control-group">
+                <h3>Display Mode Control</h3>
+                <div class="mode-buttons">
+                    <button class="mode-btn" data-mode="default">Default</button>
+                    <button class="mode-btn" data-mode="ip">IP Address</button>
+                    <button class="mode-btn" data-mode="targets">Targets</button>
+                    <button class="mode-btn" data-mode="temp">Temperature</button>
+                </div>
+                <div class="control-status">
+                    <span id="control-status">Ready</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section id="logs" class="logs-section">
         <div class="section-header">
             <h2>System Logs</h2>
@@ -339,6 +365,104 @@
     border: 1px solid #ddd;
     border-radius: 4px;
     background: white;
+}
+
+.device-control-section {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.device-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.device-selector label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.device-selector input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    min-width: 150px;
+}
+
+.display-controls {
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #e0e0e0;
+}
+
+.control-group h3 {
+    margin: 0 0 1rem 0;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.mode-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.mode-btn {
+    background: #2196F3;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    min-width: 100px;
+}
+
+.mode-btn:hover {
+    background: #1976D2;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.mode-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.mode-btn.active {
+    background: #4CAF50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.3);
+}
+
+.control-status {
+    padding: 0.5rem 1rem;
+    background: #e8f5e8;
+    border: 1px solid #c8e6c9;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #2e7d32;
+}
+
+.control-status.error {
+    background: #ffebee;
+    border-color: #ffcdd2;
+    color: #c62828;
+}
+
+.control-status.success {
+    background: #e8f5e8;
+    border-color: #c8e6c9;
+    color: #2e7d32;
 }
 </style>
 {% endblock %}

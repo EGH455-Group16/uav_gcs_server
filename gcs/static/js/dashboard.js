@@ -225,7 +225,73 @@ document.addEventListener("DOMContentLoaded", () => {
             addLogEntry("info", "All counters reset");
         });
     }
+
+    // Device control functionality
+    setupDeviceControls();
 });
+
+function setupDeviceControls() {
+    const modeButtons = document.querySelectorAll('.mode-btn');
+    const deviceIdInput = document.getElementById('device-id');
+    const controlStatus = document.getElementById('control-status');
+    
+    modeButtons.forEach(button => {
+        button.addEventListener('click', async () => {
+            const mode = button.dataset.mode;
+            const deviceId = deviceIdInput.value.trim();
+            
+            if (!deviceId) {
+                updateControlStatus('Please enter a device ID', 'error');
+                return;
+            }
+            
+            // Update button states
+            modeButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Send display command
+            await sendDisplayCommand(deviceId, mode);
+        });
+    });
+}
+
+async function sendDisplayCommand(deviceId, mode) {
+    const controlStatus = document.getElementById('control-status');
+    
+    try {
+        updateControlStatus(`Sending command to ${deviceId}...`, '');
+        
+        const response = await fetch(`/api/device/${deviceId}/display`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': 'your-api-key-here' // You may need to set this properly
+            },
+            body: JSON.stringify({ mode: mode })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            updateControlStatus(`✓ Display mode set to '${mode}' for ${deviceId}`, 'success');
+            addLogEntry("info", `Device control: Set ${deviceId} display mode to '${mode}'`);
+        } else {
+            const error = await response.json();
+            updateControlStatus(`✗ Error: ${error.error || 'Unknown error'}`, 'error');
+            addLogEntry("error", `Device control failed: ${error.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        updateControlStatus(`✗ Network error: ${error.message}`, 'error');
+        addLogEntry("error", `Device control network error: ${error.message}`);
+    }
+}
+
+function updateControlStatus(message, type = '') {
+    const controlStatus = document.getElementById('control-status');
+    if (controlStatus) {
+        controlStatus.textContent = message;
+        controlStatus.className = `control-status ${type}`;
+    }
+}
 
 function addLogEntry(level, message) {
     const logsArea = document.getElementById("logs-area");

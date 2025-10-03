@@ -8,6 +8,7 @@ A Flask-based web server for the EGH455 UAVPayloadTAQ-25 project that provides r
 - **Live Dashboard**: Web-based interface showing sensor readings and target detections
 - **Text-to-Speech**: Vocalizes target detections using browser TTS
 - **WebSocket Updates**: Real-time data streaming via Socket.IO
+- **Device Control**: Remote control of device display modes via Socket.IO and REST API
 - **Database Storage**: Persistent storage with SQLAlchemy and Flask-Migrate
 - **API Security**: Optional API key authentication (disabled by default)
 - **Health Monitoring**: Built-in health check endpoint
@@ -190,6 +191,41 @@ Content-Type: application/json
 - `gauge`: Pressure/temperature gauge with value and unit
 - `aruco`: ArUco marker detection with ID and pose
 
+### Device Control
+```
+POST /api/device/{device_id}/display
+Content-Type: application/json
+x-api-key: your-api-key
+
+{
+  "mode": "targets"
+}
+```
+
+**Display Modes:**
+- `default`: Default display with IP, motor status, and temperatures
+- `ip`: Show only IP address
+- `targets`: Show target detection count and details
+- `temp`: Show temperature readings (air and CPU)
+- `sensors`: Show detailed sensor readings (CO, NO2, NH3, light, etc.)
+
+### Socket.IO Events
+
+**Device Registration:**
+```javascript
+socket.emit('register_device', {device_id: 'pi_device_001'});
+```
+
+**Display Control:**
+```javascript
+// Send display command to specific device room
+socket.emit('set_display', {mode: 'targets'}, room='pi_device_001');
+```
+
+**Server to Device Events:**
+- `set_display`: Change device display mode
+- `ack`: Acknowledgment responses for commands
+
 ## Testing
 
 Run the test suite:
@@ -334,6 +370,17 @@ curl -X POST http://localhost:5000/api/sensors \
     "humidity_pct": 60.0,
     "source": "test"
   }'
+```
+
+### Device Control Example
+
+Test device display control:
+```bash
+# Using REST API
+curl -X POST http://localhost:5000/api/device/pi_device_001/display \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your-api-key" \
+  -d '{"mode": "targets"}'
 ```
 
 ### Logs

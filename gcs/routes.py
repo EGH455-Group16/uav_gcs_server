@@ -278,3 +278,37 @@ def api_targets():
     except Exception as e:
         log_error(f"Target API error: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
+
+
+@bp.route("/api/device/<device_id>/display", methods=["POST"])
+@api_key_required
+@cors_headers
+def api_set_display_mode(device_id):
+    """Set display mode for a specific device"""
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Content-Type must be application/json"}), 400
+        
+        data = request.get_json(silent=False)
+        if data is None:
+            return jsonify({"error": "Invalid JSON payload"}), 400
+        
+        mode = data.get("mode")
+        if not mode:
+            return jsonify({"error": "mode is required"}), 400
+        
+        # Validate mode
+        valid_modes = ["default", "ip", "targets", "temp", "sensors"]
+        if mode not in valid_modes:
+            return jsonify({"error": f"Invalid mode. Must be one of: {', '.join(valid_modes)}"}), 400
+        
+        # Import here to avoid circular imports
+        from .sockets import send_display_command
+        send_display_command(device_id, mode)
+        
+        log_request(request, 200)
+        return jsonify({"status": "ok", "device_id": device_id, "mode": mode}), 200
+        
+    except Exception as e:
+        log_error(f"Display control API error: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500

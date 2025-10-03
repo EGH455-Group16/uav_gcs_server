@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 
 db = SQLAlchemy()
 migrate = Migrate()
-socketio = SocketIO(async_mode="eventlet", cors_allowed_origins=os.getenv("SOCKETIO_CORS_ORIGINS", "*"))
+
+socketio = SocketIO(async_mode="threading", cors_allowed_origins="*")
 
 
 def create_app():
@@ -31,8 +32,8 @@ def create_app():
 
     app.register_blueprint(routes_bp)
     app.register_blueprint(sockets_bp)
-    
+
     with app.app_context():
         db.create_all()
-    
+
     return app
