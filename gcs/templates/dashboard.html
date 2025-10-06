@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <main class="container">
+
     <header class="dashboard-header">
         <h1>UAV Ground Control Station</h1>
         <div class="status-indicators">
@@ -8,6 +9,13 @@
             <span id="data-count">Records: 0</span>
         </div>
     </header>
+
+    <section id="throughput" class="throughput-card card">
+        <h2>Payload Throughput (avg last 4 s)</h2>
+        <div>AQ & SA: <strong id="tp-aqsa">--</strong> kb/s</div>
+        <div>TA & IP: <strong id="tp-taip">--</strong> kb/s</div>
+        <small id="tp-time"></small>
+    </section>
 
     <section class="main-dashboard">
         <div class="dashboard-columns">
@@ -132,6 +140,16 @@
 </main>
 
 <style>
+* {
+    box-sizing: border-box;
+}
+
+main.container {
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
 .dashboard-header {
     display: flex;
     justify-content: space-between;
@@ -139,6 +157,8 @@
     margin-bottom: 2rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid #e0e0e0;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
 .status-indicators {
@@ -157,6 +177,8 @@
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
     align-items: start;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 @media (max-width: 1024px) {
@@ -173,12 +195,16 @@
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid #e0e0e0;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
 .section-controls {
     display: flex;
     gap: 1rem;
     align-items: center;
+    flex-wrap: wrap;
+    max-width: 100%;
 }
 
 .sensors-column .grid {
@@ -463,6 +489,12 @@
     background: #e8f5e8;
     border-color: #c8e6c9;
     color: #2e7d32;
+}
+
+
+.throughput-card {
+    margin-bottom: 2rem;
+    border-left-color: #9c27b0;
 }
 </style>
 {% endblock %}

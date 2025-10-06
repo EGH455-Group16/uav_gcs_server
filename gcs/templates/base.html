@@ -10,6 +10,7 @@
             margin: 0;
             padding: 0;
             background-color: #f5f5f5;
+            overflow-x: hidden;
         }
         .container {
             width: 100%;
@@ -37,7 +38,12 @@
 </head>
 <body>
     <nav class="topnav">
+        <a href="/">Dashboard</a>
         <a href="/database-viewer">Database Viewer</a>
+        <a href="#sensors">Air Quality</a>
+        <a href="#targets">Targets / Images</a>
+        <a href="#device-control">Live Feed</a>
+        <a href="#logs">Logs</a>
     </nav>
     {% block content %}{% endblock %}
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>

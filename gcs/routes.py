@@ -8,6 +8,7 @@ from .middleware import api_key_required, cors_headers
 from .services.data_handler import ingest_sensor_json, ingest_target_json
 from .services.image_store import ensure_targets_dir, save_image_bytes, decode_b64_image, parse_details, get_image_url
 from .services.logger import log_request, log_error, push_sensor_update, push_target_detected
+from . import throughput_meter
 
 bp = Blueprint("routes", __name__)
 
@@ -117,6 +118,11 @@ def health():
         "version": "1.0.0"
     }), 200
 
+@bp.route("/api/telemetry/throughput")
+def api_throughput():
+    from . import throughput_meter
+    return jsonify(throughput_meter.snapshot())
+
 @bp.route("/api/sensors", methods=["POST"])
 @api_key_required
 @cors_headers
@@ -125,6 +131,10 @@ def api_sensors():
         # Validate JSON content type
         if not request.is_json:
             return jsonify({"error": "Content-Type must be application/json"}), 400
+        
+        # Measure payload size for AQSA
+        nbytes = request.content_length or len(request.get_data(cache=True) or b"")
+        throughput_meter.add("AQSA", nbytes)
         
         data = request.get_json(silent=False)
         if data is None:
@@ -175,6 +185,10 @@ def api_targets():
     - application/json with image_b64 (data URL or raw base64) + fields
     """
     try:
+        # Measure payload size for TAIP
+        nbytes = request.content_length or len(request.get_data(cache=True) or b"")
+        throughput_meter.add("TAIP", nbytes)
+        
         # Get current timestamp
         ts = datetime.utcnow()
         target_type = None

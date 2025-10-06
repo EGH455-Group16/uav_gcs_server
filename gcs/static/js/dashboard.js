@@ -174,6 +174,13 @@ socket.on("target_detected", (e) => {
     }
 });
 
+socket.on("throughput_update", data => {
+    document.getElementById("tp-aqsa").textContent = data.aqsa_kbps ?? "--";
+    document.getElementById("tp-taip").textContent = data.taip_kbps ?? "--";
+    document.getElementById("tp-time").textContent =
+        `Updated: ${new Date(data.ts * 1000).toLocaleTimeString()}`;
+});
+
 function updateDataCounters() {
     const dataCountElement = document.getElementById("data-count");
     if (dataCountElement) {
