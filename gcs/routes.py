@@ -14,6 +14,26 @@ bp = Blueprint("routes", __name__)
 def index():
     return render_template("dashboard.html")
 
+@bp.route("/air-quality")
+def air_quality():
+    """Air Quality monitoring page"""
+    return render_template("air_quality.html")
+
+@bp.route("/targets")
+def targets():
+    """Targets and Images page"""
+    return render_template("targets.html")
+
+@bp.route("/live-feed")
+def live_feed():
+    """Live Feed and Device Control page"""
+    return render_template("live_feed.html")
+
+@bp.route("/logs")
+def logs():
+    """System Logs page"""
+    return render_template("logs.html")
+
 @bp.route("/api/latest-sensor")
 def latest_sensor():
     """Get the latest sensor data for dashboard initialization"""
