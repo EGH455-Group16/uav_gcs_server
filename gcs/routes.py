@@ -69,7 +69,23 @@ def recent_targets():
 def api_recent_detections():
     """Get recent detections with archive and de-duplication logic"""
     limit = request.args.get("limit", 40, type=int)
-    return jsonify(recent_detections.list(limit=limit))
+    
+    # Get from in-memory service first
+    detections = recent_detections.list(limit=limit)
+    
+    # If no detections in memory, fall back to database
+    if not detections:
+        from .models import TargetDetection
+        recent = TargetDetection.query.order_by(TargetDetection.ts.asc()).limit(limit).all()
+        detections = [{
+            "ts": target.ts.timestamp(),  # Convert to epoch seconds for consistency
+            "type": target.target_type,
+            "details": target.details_json or {},
+            "image_url": target.image_url or "/static/targets/latest.jpg",
+            "thumb_url": target.image_url or "/static/targets/latest.jpg"
+        } for target in recent]
+    
+    return jsonify(detections)
 
 @bp.route("/database-viewer")
 def database_viewer():

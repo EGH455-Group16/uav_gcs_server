@@ -70,5 +70,5 @@ class RecentDetections:
                 "details": it.details,
                 "image_url": it.image_url,
                 "thumb_url": it.thumb_url
-            } for it in list(self.items)[-limit:][::-1]
+            } for it in list(self.items)[:limit]
         ]
