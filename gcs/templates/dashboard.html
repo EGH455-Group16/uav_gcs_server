@@ -85,7 +85,9 @@
 
                     <div class="live-detection">
                         <div class="card detection-card">
-                            <img id="det-img" src="/static/targets/latest.jpg" alt="Latest detection" class="detection-image">
+                            <div class="detection-image-container">
+                                <img id="det-img" src="/static/targets/latest.jpg" alt="Latest detection" class="detection-image">
+                            </div>
                             <div id="det-meta" class="detection-meta">Type: -- | ts: --</div>
                         </div>
                     </div>
@@ -174,7 +176,7 @@ main.container {
 
 .dashboard-columns {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 2fr;
     gap: 2rem;
     align-items: start;
     max-width: 100%;
@@ -229,14 +231,26 @@ main.container {
 
 .detection-card {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.detection-image-container {
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
 }
 
 .detection-image {
-    max-width: 100%;
+    width: 100%;
     height: auto;
+    display: block;
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 0.5rem;
 }
 
 .detection-meta {
