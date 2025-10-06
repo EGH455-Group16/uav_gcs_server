@@ -1,14 +1,12 @@
-import logging
-import os
 from datetime import datetime
 
 from flask import Blueprint, request, jsonify, render_template
 
 from .middleware import api_key_required, cors_headers
 from .services.data_handler import ingest_sensor_json, ingest_target_json
-from .services.image_store import ensure_targets_dir, save_image_bytes, decode_b64_image, parse_details, get_image_url
+from .services.image_store import ensure_targets_dir, save_image_bytes, decode_b64_image, parse_details, get_image_url, archive_image_bytes
 from .services.logger import log_request, log_error, push_sensor_update, push_target_detected
-from . import throughput_meter
+from . import throughput_meter, recent_detections
 
 bp = Blueprint("routes", __name__)
 
@@ -46,6 +44,12 @@ def recent_targets():
         "details": target.details_json,
         "image_url": target.image_url
     } for target in recent])
+
+@bp.route("/api/recent-detections")
+def api_recent_detections():
+    """Get recent detections with archive and de-duplication logic"""
+    limit = request.args.get("limit", 40, type=int)
+    return jsonify(recent_detections.list(limit=limit))
 
 @bp.route("/database-viewer")
 def database_viewer():
@@ -228,6 +232,9 @@ def api_targets():
             img_bytes = file.read()
             save_image_bytes(img_bytes, "latest.jpg")
             
+            # Archive a snapshot for recent detections
+            archived_url = archive_image_bytes(img_bytes, target_type)
+            
         elif request.is_json:
             # Handle application/json
             data = request.get_json(silent=False)
@@ -253,6 +260,9 @@ def api_targets():
             try:
                 img_bytes = decode_b64_image(data["image_b64"])
                 save_image_bytes(img_bytes, "latest.jpg")
+                
+                # Archive a snapshot for recent detections
+                archived_url = archive_image_bytes(img_bytes, target_type)
             except ValueError as e:
                 return jsonify({"error": str(e)}), 400
                 
@@ -281,6 +291,19 @@ def api_targets():
             "details": rec.details_json,
             "image_url": rec.image_url
         })
+        
+        # Consider for Recent Detections (confidence, de-dupe, 4s refresh)
+        accepted = recent_detections.consider(target_type, details, archived_url, server_ts=ts.timestamp())
+        if accepted:
+            # Broadcast a dedicated recent-detection event (in addition to existing push_target_detected)
+            from . import socketio
+            socketio.emit("recent_detection", {
+                "ts": accepted.ts,
+                "type": accepted.type,
+                "details": accepted.details,
+                "image_url": accepted.image_url,
+                "thumb_url": accepted.thumb_url
+            }, namespace="/stream")
         
         return jsonify({
             "url": image_url,

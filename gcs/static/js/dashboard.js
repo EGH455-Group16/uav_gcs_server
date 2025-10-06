@@ -181,6 +181,12 @@ socket.on("throughput_update", data => {
         `Updated: ${new Date(data.ts * 1000).toLocaleTimeString()}`;
 });
 
+socket.on('recent_detection', (item) => {
+    addRecentItem(item);
+    // Switch immediately to the new object
+    setPreview(item);
+});
+
 function updateDataCounters() {
     const dataCountElement = document.getElementById("data-count");
     if (dataCountElement) {
@@ -319,6 +325,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     
     await loadRecentTargets();
     
+    await loadRecent();
+    
     refreshDetection();
     
     setInterval(() => refreshDetection(), 3500);
@@ -382,5 +390,49 @@ async function loadRecentTargets() {
     } catch (error) {
         console.error('Error loading recent targets:', error);
         addLogEntry("error", "Failed to load recent target detections from database");
+    }
+}
+
+// Recent Detections functionality
+async function loadRecent() {
+    try {
+        const res = await fetch('/api/recent-detections?limit=40');
+        const data = await res.json();
+        renderRecentList(data);
+    } catch (e) { 
+        console.warn('recent load failed', e); 
+    }
+}
+
+function renderRecentList(items) {
+    const ul = document.getElementById('recent-list');
+    if (!ul) return;
+    ul.innerHTML = '';
+    items.forEach(addRecentItem);
+}
+
+function addRecentItem(item) {
+    const ul = document.getElementById('recent-list');
+    if (!ul) return;
+    const li = document.createElement('li');
+    li.innerHTML = `
+        <img src="${item.thumb_url}" alt="">
+        <div class="meta">
+            <span class="t">${item.type}</span>
+            <span class="s">${new Date(item.ts * 1000).toLocaleTimeString()}</span>
+        </div>`;
+    li.addEventListener('click', () => {
+        setPreview(item);
+    });
+    ul.prepend(li);
+}
+
+function setPreview(item) {
+    const img = document.getElementById('det-img');
+    const meta = document.getElementById('det-meta');
+    if (img) img.src = item.image_url + '?v=' + Date.now();
+    if (meta) {
+        const det = JSON.stringify(item.details);
+        meta.textContent = `Type: ${item.type} | ts: ${new Date(item.ts * 1000).toLocaleTimeString()} | ${det}`;
     }
 }

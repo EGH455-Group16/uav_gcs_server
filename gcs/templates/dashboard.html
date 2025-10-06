@@ -77,16 +77,16 @@
                         <button id="clear-targets" class="btn-secondary">Clear History</button>
                     </div>
                 </div>
-                <div class="targets-content">
+                <div class="targets-content two-col">
+                    <aside class="recent-list">
+                        <h3>Recent Detections</h3>
+                        <ul id="recent-list"></ul>
+                    </aside>
+
                     <div class="live-detection">
                         <div class="card detection-card">
                             <img id="det-img" src="/static/targets/latest.jpg" alt="Latest detection" class="detection-image">
                             <div id="det-meta" class="detection-meta">Type: -- | ts: --</div>
-                        </div>
-                    </div>
-                    <div class="target-history">
-                        <div class="target-list-container">
-                            <ul id="target-list" class="target-list"></ul>
                         </div>
                     </div>
                 </div>
@@ -495,6 +495,76 @@ main.container {
 .throughput-card {
     margin-bottom: 2rem;
     border-left-color: #9c27b0;
+}
+
+/* Recent Detections Styles */
+.two-col { 
+    display: grid; 
+    grid-template-columns: 280px 1fr; 
+    gap: 1rem; 
+}
+
+@media (max-width: 1100px) { 
+    .two-col { 
+        grid-template-columns: 1fr; 
+    } 
+}
+
+.recent-list { 
+    background: #111; 
+    color: #eee; 
+    padding: 0.5rem; 
+    border-radius: 8px; 
+    max-height: 600px; 
+    overflow: auto; 
+}
+
+.recent-list h3 { 
+    margin: 0 0 .5rem 0; 
+    font-size: 1rem; 
+}
+
+#recent-list { 
+    list-style: none; 
+    margin: 0; 
+    padding: 0; 
+}
+
+#recent-list li { 
+    display: flex; 
+    gap: .5rem; 
+    align-items: center; 
+    padding: .4rem; 
+    border-radius: 6px; 
+    cursor: pointer; 
+}
+
+#recent-list li:hover { 
+    background: #222; 
+}
+
+#recent-list img { 
+    width: 52px; 
+    height: 52px; 
+    object-fit: cover; 
+    border-radius: 4px; 
+}
+
+#recent-list .meta { 
+    display: flex; 
+    flex-direction: column; 
+    line-height: 1.1; 
+}
+
+#recent-list .meta .t { 
+    font-weight: 600; 
+    font-size: .9rem; 
+}
+
+#recent-list .meta .s { 
+    color: #9ad; 
+    font-family: monospace; 
+    font-size: .8rem; 
 }
 </style>
 {% endblock %}

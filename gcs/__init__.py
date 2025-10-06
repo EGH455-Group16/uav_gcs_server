@@ -1,4 +1,3 @@
-import os
 import time
 
 from flask import Flask, request
@@ -8,12 +7,14 @@ from flask_socketio import SocketIO
 from dotenv import load_dotenv
 
 from .services.throughput import ThroughputMeter
+from .services.recent_detections import RecentDetections
 
 db = SQLAlchemy()
 migrate = Migrate()
 
 socketio = SocketIO(async_mode="threading", cors_allowed_origins="*")
 throughput_meter = ThroughputMeter(4.0)
+recent_detections = RecentDetections(window_sec=3600, max_items=200, min_conf=0.75, refresh_sec=4.0)
 
 
 def create_app():

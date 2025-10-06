@@ -1,6 +1,8 @@
 import base64
 import json
 import os
+import time
+from pathlib import Path
 from typing import Any, Dict
 
 
@@ -62,3 +64,21 @@ def parse_details(details: Any) -> Dict[str, Any]:
 
 def get_image_url() -> str:
     return "/static/targets/latest.jpg"
+
+
+# Archive functionality
+ARCHIVE_DIR = Path("gcs/static/targets/archive")
+
+def ensure_archive_dir():
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+
+def archive_image_bytes(img_bytes: bytes, det_type: str) -> str:
+    ensure_archive_dir()
+    # UTC iso-ish filename safe for files
+    ts = time.time()
+    fname = f"{time.strftime('%Y%m%dT%H%M%S', time.gmtime(ts))}_{det_type}.jpg"
+    fpath = ARCHIVE_DIR / fname
+    with open(fpath, "wb") as f:
+        f.write(img_bytes)
+    # return URL path
+    return f"/static/targets/archive/{fname}"
