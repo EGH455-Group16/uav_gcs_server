@@ -84,16 +84,19 @@
                     </aside>
 
                     <div class="live-detection">
+                        <div class="detection-controls">
+                            <button id="live-camera-btn" class="btn-primary">📹 Live Camera</button>
+                        </div>
                         <div class="card detection-card">
                             <div class="detection-image-container">
                                 <img id="det-img" src="/static/targets/latest.jpg" alt="Latest detection" class="detection-image">
                             </div>
                             <div id="det-meta" class="detection-meta">
                                 <div class="target-header">
-                                    <span class="target-time">[--:--:--]</span>
-                                    <span class="target-type">--</span>
+                                    <span class="target-time">[LIVE]</span>
+                                    <span class="target-type">LIVE CAMERA</span>
                                 </div>
-                                <div class="target-details">No detection data available</div>
+                                <div class="target-details">Monitoring live camera feed...</div>
                             </div>
                         </div>
                     </div>
@@ -557,6 +560,26 @@ main.container {
     border-left-color: #9c27b0;
 }
 
+/* Detection Controls */
+.detection-controls {
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.detection-controls button {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.detection-controls button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
 /* Recent Detections Styles */
 .two-col { 
     display: grid; 
@@ -601,6 +624,11 @@ main.container {
 
 #recent-list li:hover { 
     background: #222; 
+}
+
+#recent-list li.active { 
+    background: #333; 
+    border: 1px solid #4CAF50;
 }
 
 #recent-list img { 

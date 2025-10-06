@@ -76,7 +76,9 @@ def api_recent_detections():
     # If no detections in memory, fall back to database
     if not detections:
         from .models import TargetDetection
-        recent = TargetDetection.query.order_by(TargetDetection.ts.asc()).limit(limit).all()
+        # Get the most recent records and reverse them to show earliest to latest
+        recent = TargetDetection.query.order_by(TargetDetection.ts.desc()).limit(limit).all()
+        recent.reverse()  # Reverse to show earliest to latest
         detections = [{
             "ts": target.ts.timestamp(),  # Convert to epoch seconds for consistency
             "type": target.target_type,
@@ -311,7 +313,7 @@ def api_targets():
             ts=ts,
             target_type=target_type,
             details_json=details,
-            image_url=image_url
+            image_url=archived_url  # Use the archived URL instead of latest.jpg
         )
         
         from . import db

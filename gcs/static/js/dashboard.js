@@ -143,11 +143,15 @@ socket.on("target_detected", (e) => {
             <span class="target-details">${JSON.stringify(e.details)}</span>
         </div>
     `;
-    document.getElementById("target-list").prepend(li);
-    
-    const targetList = document.getElementById("target-list");
-    while (targetList.children.length > 50) {
-        targetList.removeChild(targetList.lastChild);
+    const recentList = document.getElementById("recent-list");
+    if (recentList) {
+        recentList.prepend(li);
+    } else {
+        console.warn("recent-list element not found");
+        return;
+    }
+    while (recentList.children.length > 50) {
+        recentList.removeChild(recentList.lastChild);
     }
 
     targetDetectionCount++;
@@ -205,11 +209,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const clearTargetsBtn = document.getElementById("clear-targets");
     if (clearTargetsBtn) {
         clearTargetsBtn.addEventListener("click", () => {
-            document.getElementById("target-list").innerHTML = "";
+            // Clear recent detections list
+            const recentList = document.getElementById("recent-list");
+            if (recentList) {
+                recentList.innerHTML = "";
+            }
+            
             targetDetectionCount = 0;
             localStorage.setItem('targetDetectionCount', '0');
             updateDataCounters();
             addLogEntry("info", "Target detection history cleared");
+        });
+    }
+
+    // Live Camera button functionality
+    const liveCameraBtn = document.getElementById("live-camera-btn");
+    if (liveCameraBtn) {
+        liveCameraBtn.addEventListener("click", () => {
+            switchToLiveCamera();
         });
     }
 
@@ -368,20 +385,31 @@ async function loadRecentTargets() {
         const data = await response.json();
         
         if (data && data.length > 0) {
-            const targetList = document.getElementById("target-list");
-            targetList.innerHTML = "";
-            
-            data.forEach(target => {
-                const li = document.createElement("li");
-                li.innerHTML = `
-                    <div class="target-item">
-                        <span class="target-time">[${new Date(target.ts).toLocaleTimeString()}]</span>
-                        <span class="target-type">${target.target_type.toUpperCase()}</span>
-                        <span class="target-details">${JSON.stringify(target.details)}</span>
-                    </div>
-                `;
-                targetList.appendChild(li);
-            });
+            const recentList = document.getElementById("recent-list");
+            if (recentList) {
+                recentList.innerHTML = "";
+                
+                data.forEach(target => {
+                    const li = document.createElement("li");
+                    li.innerHTML = `
+                        <div class="target-item">
+                            <div class="target-image">
+                                <img src="${target.image_url || '/static/targets/latest.jpg'}" alt="${target.target_type}" onerror="this.src='/static/targets/latest.jpg'">
+                            </div>
+                            <div class="target-content">
+                                <div class="target-header">
+                                    <span class="target-time">[${new Date(target.ts).toLocaleTimeString()}]</span>
+                                    <span class="target-type">${target.target_type.toUpperCase()}</span>
+                                </div>
+                                <div class="target-details">${JSON.stringify(target.details)}</div>
+                            </div>
+                        </div>
+                    `;
+                    recentList.appendChild(li);
+                });
+            } else {
+                console.warn("recent-list element not found");
+            }
             
             addLogEntry("info", `Loaded ${data.length} recent target detections from database`);
         } else {
@@ -415,24 +443,99 @@ function addRecentItem(item) {
     const ul = document.getElementById('recent-list');
     if (!ul) return;
     const li = document.createElement('li');
+    
+    // Handle different timestamp formats
+    let timeStr;
+    if (typeof item.ts === 'number') {
+        timeStr = new Date(item.ts * 1000).toLocaleTimeString();
+    } else if (typeof item.ts === 'string') {
+        timeStr = new Date(item.ts).toLocaleTimeString();
+    } else {
+        timeStr = 'Unknown time';
+    }
+    
+    // Format details based on target type
+    let detailsHtml = '';
+    if (item.type === 'valve') {
+        const state = item.details?.state || 'unknown';
+        const confidence = item.details?.confidence ? (item.details.confidence * 100).toFixed(1) : '0.0';
+        detailsHtml = `State: ${state} | Confidence: ${confidence}%`;
+    } else if (item.type === 'gauge') {
+        const reading = item.details?.reading_bar || item.details?.value || 'unknown';
+        const confidence = item.details?.confidence ? (item.details.confidence * 100).toFixed(1) : '0.0';
+        detailsHtml = `Reading: ${reading} bar | Confidence: ${confidence}%`;
+    } else if (item.type === 'aruco') {
+        const id = item.details?.id || 'unknown';
+        const confidence = item.details?.confidence ? (item.details.confidence * 100).toFixed(1) : '0.0';
+        const position = item.details?.tvec ? `[${item.details.tvec.map(v => v.toFixed(3)).join(', ')}]` : 'unknown';
+        const rotation = item.details?.rvec ? `[${item.details.rvec.map(v => v.toFixed(3)).join(', ')}]` : 'unknown';
+        detailsHtml = `ID: ${id} | Confidence: ${confidence}% | Position: ${position} | Rotation: ${rotation}`;
+    } else {
+        // Fallback for other types
+        detailsHtml = JSON.stringify(item.details || {});
+    }
+    
     li.innerHTML = `
-        <img src="${item.thumb_url}" alt="">
-        <div class="meta">
-            <span class="t">${item.type}</span>
-            <span class="s">${new Date(item.ts * 1000).toLocaleTimeString()}</span>
+        <div class="target-item">
+            <div class="target-image">
+                <img src="${item.thumb_url || item.image_url || '/static/targets/latest.jpg'}" alt="${item.type}" onerror="this.src='/static/targets/latest.jpg'">
+            </div>
+            <div class="target-content">
+                <div class="target-header">
+                    <span class="target-time">[${timeStr}]</span>
+                    <span class="target-type">${item.type.toUpperCase()}</span>
+                </div>
+                <div class="target-details">${detailsHtml}</div>
+            </div>
         </div>`;
+    
     li.addEventListener('click', () => {
+        // Remove active class from all items
+        document.querySelectorAll('#recent-list li').forEach(el => el.classList.remove('active'));
+        // Add active class to clicked item
+        li.classList.add('active');
+        
         setPreview(item);
     });
-    ul.prepend(li);
+    ul.appendChild(li);  // Append to maintain ascending order (earliest to latest)
 }
 
 function setPreview(item) {
     const img = document.getElementById('det-img');
     const meta = document.getElementById('det-meta');
-    if (img) img.src = item.image_url + '?v=' + Date.now();
+    
+    if (img) {
+        const newSrc = item.image_url + '?v=' + Date.now();
+        img.src = newSrc;
+    }
     if (meta) {
         const det = JSON.stringify(item.details);
-        meta.textContent = `Type: ${item.type} | ts: ${new Date(item.ts * 1000).toLocaleTimeString()} | ${det}`;
+        const metaText = `Type: ${item.type} | ts: ${new Date(item.ts * 1000).toLocaleTimeString()} | ${det}`;
+        meta.textContent = metaText;
     }
+}
+
+function switchToLiveCamera() {
+    // Clear active selection from recent detections
+    document.querySelectorAll('#recent-list li').forEach(el => el.classList.remove('active'));
+    
+    // Reset image to live feed
+    const img = document.getElementById('det-img');
+    if (img) {
+        img.src = '/static/targets/latest.jpg?v=' + Date.now();
+    }
+    
+    // Reset metadata to show live status
+    const meta = document.getElementById('det-meta');
+    if (meta) {
+        meta.innerHTML = `
+            <div class="target-header">
+                <span class="target-time">[LIVE]</span>
+                <span class="target-type">LIVE CAMERA</span>
+            </div>
+            <div class="target-details">Monitoring live camera feed...</div>
+        `;
+    }
+    
+    addLogEntry("info", "Switched to live camera view");
 }
