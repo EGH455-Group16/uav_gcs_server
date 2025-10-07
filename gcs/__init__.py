@@ -58,7 +58,7 @@ def create_app():
 
     def _emit_throughput():
         while True:
-            socketio.emit("throughput_update", throughput_meter.snapshot(), namespace="/")
+            socketio.emit("throughput_update", throughput_meter.snapshot(), namespace="/stream")
             sleep(4)
 
     socketio.start_background_task(_emit_throughput)
