@@ -84,7 +84,7 @@ function updateConnectionStatus(status) {
     if (!statusElement) {
         const statusDiv = document.createElement("div");
         statusDiv.id = "connection-status";
-        statusDiv.style.cssText = "position: fixed; top: 10px; right: 10px; padding: 5px 10px; border-radius: 3px; color: white; font-size: 12px; z-index: 1000;";
+        statusDiv.style.cssText = "position: fixed; top: 70px; right: 10px; padding: 5px 10px; border-radius: 3px; color: white; font-size: 12px; z-index: 1000; box-shadow: 0 2px 4px rgba(0,0,0,0.2);";
         document.body.appendChild(statusDiv);
         statusElement = statusDiv;
     }

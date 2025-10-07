@@ -21,6 +21,12 @@
             background-color: #333;
             overflow: hidden;
             margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .topnav .nav-links {
+            display: flex;
         }
         .topnav a {
             float: left;
@@ -34,16 +40,49 @@
             background-color: #ddd;
             color: black;
         }
+        .topnav .server-info {
+            color: #4CAF50;
+            padding: 14px 16px;
+            font-family: monospace;
+            font-size: 15px;
+            font-weight: bold;
+            background-color: #222;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .topnav .server-info .label {
+            color: #888;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+        @media (max-width: 1024px) {
+            .topnav {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .topnav .nav-links {
+                flex-wrap: wrap;
+            }
+            .topnav .server-info {
+                text-align: center;
+                margin: 5px 10px;
+            }
+        }
     </style>
 </head>
 <body>
     <nav class="topnav">
-        <a href="/">Dashboard</a>
-        <a href="/database-viewer">Database Viewer</a>
-        <a href="/air-quality">Air Quality</a>
-        <a href="/targets">Targets / Images</a>
-        <a href="/live-feed">Live Feed</a>
-        <a href="/logs">Logs</a>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/database-viewer">Database Viewer</a>
+            <a href="/air-quality">Air Quality</a>
+            <a href="/targets">Targets / Images</a>
+            <a href="/live-feed">Live Feed</a>
+            <a href="/logs">Logs</a>
+        </div>
+        <div class="server-info">
+            <span class="label">Server:</span>{{ server_ip }}:{{ server_port }}
+        </div>
     </nav>
     {% block content %}{% endblock %}
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
