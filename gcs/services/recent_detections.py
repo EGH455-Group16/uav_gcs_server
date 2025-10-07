@@ -72,3 +72,9 @@ class RecentDetections:
                 "thumb_url": it.thumb_url
             } for it in list(self.items)[:limit]
         ]
+
+    def clear(self):
+        """Clear all stored detections"""
+        self.items.clear()
+        self._last = None
+        self._last_emit_ts = 0.0

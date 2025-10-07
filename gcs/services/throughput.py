@@ -36,3 +36,9 @@ class ThroughputMeter:
             "taip_kbps": self.kbps("TAIP"),
             "ts": time(),
         }
+
+    def reset(self):
+        """Reset all throughput data"""
+        with self._lock:
+            for stream in self._streams:
+                self._streams[stream].clear()

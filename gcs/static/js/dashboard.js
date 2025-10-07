@@ -208,17 +208,46 @@ function updateLastUpdateTime() {
 document.addEventListener("DOMContentLoaded", () => {
     const clearTargetsBtn = document.getElementById("clear-targets");
     if (clearTargetsBtn) {
-        clearTargetsBtn.addEventListener("click", () => {
-            // Clear recent detections list
-            const recentList = document.getElementById("recent-list");
-            if (recentList) {
-                recentList.innerHTML = "";
+        clearTargetsBtn.addEventListener("click", async () => {
+            // Ask for confirmation
+            if (!confirm("Are you sure you want to clear ALL history? This will delete all database records, images, and reset all counters. This action cannot be undone.")) {
+                return;
             }
             
-            targetDetectionCount = 0;
-            localStorage.setItem('targetDetectionCount', '0');
-            updateDataCounters();
-            addLogEntry("info", "Target detection history cleared");
+            try {
+                // Call the clear history API endpoint
+                const response = await fetch('/api/clear-history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to clear history');
+                }
+                
+                const result = await response.json();
+                
+                // Clear the UI
+                const recentList = document.getElementById("recent-list");
+                if (recentList) {
+                    recentList.innerHTML = "";
+                }
+                
+                // Reset counters
+                targetDetectionCount = 0;
+                sensorUpdateCount = 0;
+                localStorage.setItem('targetDetectionCount', '0');
+                localStorage.setItem('sensorUpdateCount', '0');
+                updateDataCounters();
+                
+                addLogEntry("success", "All history cleared successfully - database, images, and counters reset");
+            } catch (error) {
+                console.error("Error clearing history:", error);
+                addLogEntry("error", `Failed to clear history: ${error.message}`);
+            }
         });
     }
 

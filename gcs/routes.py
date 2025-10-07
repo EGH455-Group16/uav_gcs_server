@@ -387,3 +387,53 @@ def api_set_display_mode(device_id):
     except Exception as e:
         log_error(f"Display control API error: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
+
+
+@bp.route("/api/clear-history", methods=["POST"])
+def api_clear_history():
+    """Clear all history including database records and stored images"""
+    try:
+        import os
+        import shutil
+        from pathlib import Path
+        from .models import SensorData, TargetDetection, SystemLog
+        from . import db
+        
+        # Clear database tables
+        TargetDetection.query.delete()
+        SensorData.query.delete()
+        SystemLog.query.delete()
+        db.session.commit()
+        
+        # Clear archived images
+        archive_dir = Path("gcs/static/targets/archive")
+        if archive_dir.exists():
+            for file in archive_dir.iterdir():
+                if file.is_file():
+                    file.unlink()
+        
+        # Clear latest.jpg (optional - replace with placeholder or delete)
+        latest_jpg = Path("gcs/static/targets/latest.jpg")
+        if latest_jpg.exists():
+            latest_jpg.unlink()
+        
+        # Clear in-memory services
+        recent_detections.clear()
+        throughput_meter.reset()
+        
+        log_request(request, 200)
+        return jsonify({
+            "status": "ok",
+            "message": "History cleared successfully",
+            "cleared": {
+                "database_records": True,
+                "archived_images": True,
+                "latest_image": True,
+                "memory_cache": True,
+                "throughput": True
+            }
+        }), 200
+        
+    except Exception as e:
+        log_error(f"Clear history API error: {str(e)}")
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
