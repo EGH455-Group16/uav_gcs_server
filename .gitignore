@@ -71,3 +71,5 @@ gcs/static/targets/archive/
 # Temporary files
 *.tmp
 *.temp
+
+gcs/__pycache__
