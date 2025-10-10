@@ -340,16 +340,16 @@ def api_targets():
         else:
             return jsonify({"error": "Content-Type must be multipart/form-data or application/json"}), 400
         
-        # Check if this is just a live feed frame (no actual detection)
-        if target_type == "livedata":
-            # Just update latest.jpg, don't create database record
-            log_request(request, 200)
-            return jsonify({
-                "status": "ok",
-                "message": "Live feed frame updated",
-                "url": image_url,
-                "ts": ts.isoformat()
-            }), 200
+        # # Check if this is just a live feed frame (no actual detection)
+        # if target_type == "livedata":
+        #     # Just update latest.jpg, don't create database record
+        #     log_request(request, 200)
+        #     return jsonify({
+        #         "status": "ok",
+        #         "message": "Live feed frame updated",
+        #         "url": image_url,
+        #         "ts": ts.isoformat()
+        #     }), 200
         
         # Create target detection record for actual detections
         from .models import TargetDetection
