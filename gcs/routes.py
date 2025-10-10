@@ -19,6 +19,11 @@ def air_quality():
     """Air Quality monitoring page"""
     return render_template("air_quality.html")
 
+@bp.route("/graphs")
+def graphs():
+    """Real-time and historical sensor graphs page"""
+    return render_template("graphs.html")
+
 @bp.route("/targets")
 def targets():
     """Targets and Images page"""
@@ -52,6 +57,32 @@ def latest_sensor():
             "source": latest.source
         })
     return jsonify(None)
+
+@bp.route("/api/sensor-history")
+def sensor_history():
+    """Get historical sensor data for graphs (chronological order)"""
+    from .models import SensorData
+    limit = request.args.get('limit', 100, type=int)
+    
+    # Limit to reasonable values
+    if limit > 500:
+        limit = 500
+    
+    # Get recent records and reverse to chronological order (oldest to newest)
+    records = SensorData.query.order_by(SensorData.ts.desc()).limit(limit).all()
+    records.reverse()  # Now oldest to newest
+    
+    return jsonify([{
+        "ts": record.ts.isoformat(),
+        "co_ppm": record.co_ppm,
+        "no2_ppm": record.no2_ppm,
+        "nh3_ppm": record.nh3_ppm,
+        "light_lux": record.light_lux,
+        "temp_c": record.temp_c,
+        "pressure_hpa": record.pressure_hpa,
+        "humidity_pct": record.humidity_pct,
+        "source": record.source
+    } for record in records])
 
 @bp.route("/api/recent-targets")
 def recent_targets():
