@@ -15,6 +15,43 @@ function set(id, v) {
     document.getElementById(id).textContent = v; 
 }
 
+function formatDetails(type, details) {
+    if (!details) return 'No details available';
+    
+    if (type === 'valve') {
+        const state = details.state || 'unknown';
+        const confidence = details.confidence ? (details.confidence * 100).toFixed(1) + '%' : 'N/A';
+        return `State: <strong>${state}</strong> | Confidence: <strong>${confidence}</strong>`;
+    } else if (type === 'gauge') {
+        const reading = details.reading_bar || details.value || 'unknown';
+        const confidence = details.confidence ? (details.confidence * 100).toFixed(1) + '%' : 'N/A';
+        return `Reading: <strong>${reading} bar</strong> | Confidence: <strong>${confidence}</strong>`;
+    } else if (type === 'aruco') {
+        const id = details.id !== undefined ? details.id : 'unknown';
+        const confidence = details.confidence ? (details.confidence * 100).toFixed(1) + '%' : 'N/A';
+        let html = `ID: <strong>${id}</strong> | Confidence: <strong>${confidence}</strong>`;
+        
+        if (details.tvec) {
+            const pos = details.tvec.map(v => v.toFixed(2)).join(', ');
+            html += `<br>Position: [${pos}]`;
+        }
+        if (details.rvec) {
+            const rot = details.rvec.map(v => v.toFixed(2)).join(', ');
+            html += `<br>Rotation: [${rot}]`;
+        }
+        return html;
+    } else {
+        // For other types, format nicely
+        const confidence = details.confidence ? `Confidence: <strong>${(details.confidence * 100).toFixed(1)}%</strong>` : '';
+        const otherFields = Object.entries(details)
+            .filter(([key]) => key !== 'confidence')
+            .map(([key, value]) => `${key}: <strong>${value}</strong>`)
+            .join(' | ');
+        
+        return [confidence, otherFields].filter(Boolean).join(' | ') || 'No additional details';
+    }
+}
+
 function refreshDetection(meta) {
     const img = document.getElementById('det-img');
     if (img) {
@@ -33,8 +70,18 @@ function refreshDetection(meta) {
         const el = document.getElementById('det-meta');
         if (el) {
             const { target_type, ts, details } = meta;
-            const confidence = details?.confidence ? ` | conf: ${details.confidence}` : '';
-            el.textContent = `Type: ${target_type ?? '--'} | ts: ${ts ?? '--'}${confidence}`;
+            
+            // Use the formatDetails function for consistent formatting
+            const detailsHtml = formatDetails(target_type, details);
+            const timeStr = ts ? new Date(ts).toLocaleTimeString() : 'Unknown';
+            
+            el.innerHTML = `
+                <div class="target-header">
+                    <span class="target-time">[${timeStr}]</span>
+                    <span class="target-type">${target_type ? target_type.toUpperCase() : 'UNKNOWN'}</span>
+                </div>
+                <div class="target-details">${detailsHtml}</div>
+            `;
         }
     }
 }
@@ -538,9 +585,18 @@ function setPreview(item) {
         img.src = newSrc;
     }
     if (meta) {
-        const det = JSON.stringify(item.details);
-        const metaText = `Type: ${item.type} | ts: ${new Date(item.ts * 1000).toLocaleTimeString()} | ${det}`;
-        meta.textContent = metaText;
+        // Format details based on target type
+        let detailsHtml = formatDetails(item.type, item.details);
+        
+        const timeStr = new Date(item.ts * 1000).toLocaleTimeString();
+        
+        meta.innerHTML = `
+            <div class="target-header">
+                <span class="target-time">[${timeStr}]</span>
+                <span class="target-type">${item.type.toUpperCase()}</span>
+            </div>
+            <div class="target-details">${detailsHtml}</div>
+        `;
     }
 }
 

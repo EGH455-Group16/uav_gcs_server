@@ -36,6 +36,10 @@ class RecentDetections:
         return False
 
     def consider(self, t: str, details: dict, image_url: str, server_ts: float) -> Optional[DetectionItem]:
+        # Filter out "livedata" type (not a real detection)
+        if t == "livedata":
+            return None
+        
         conf = float(details.get("confidence", 0.0))
         if conf < self.min_conf:
             return None
