@@ -91,12 +91,13 @@ def recent_targets():
     """Get recent target detections for dashboard initialization"""
     from .models import TargetDetection
     recent = TargetDetection.query.order_by(TargetDetection.ts.desc()).limit(20).all()
+    # Filter out "livedata" type (not a real detection)
     return jsonify([{
         "ts": target.ts.isoformat(),
         "target_type": target.target_type,
         "details": target.details_json,
         "image_url": target.image_url
-    } for target in recent])
+    } for target in recent if target.target_type != "livedata"])
 
 @bp.route("/api/recent-detections")
 def api_recent_detections():
@@ -110,7 +111,10 @@ def api_recent_detections():
     if not detections:
         from .models import TargetDetection
         # Get the most recent records and reverse them to show earliest to latest
-        recent = TargetDetection.query.order_by(TargetDetection.ts.desc()).limit(limit).all()
+        # Filter out "livedata" type (not a real detection)
+        recent = TargetDetection.query.filter(
+            TargetDetection.target_type != "livedata"
+        ).order_by(TargetDetection.ts.desc()).limit(limit).all()
         recent.reverse()  # Reverse to show earliest to latest
         detections = [{
             "ts": target.ts.timestamp(),  # Convert to epoch seconds for consistency
@@ -166,7 +170,10 @@ def api_target_data():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     
-    target_data = TargetDetection.query.order_by(TargetDetection.ts.desc()).paginate(
+    # Filter out "livedata" type (not a real detection)
+    target_data = TargetDetection.query.filter(
+        TargetDetection.target_type != "livedata"
+    ).order_by(TargetDetection.ts.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
     
@@ -366,15 +373,17 @@ def api_targets():
         
         log_request(request, 201)
         
-        # Emit target detection via Socket.IO
-        push_target_detected({
-            "ts": rec.ts.isoformat(),
-            "target_type": rec.target_type,
-            "details": rec.details_json,
-            "image_url": rec.image_url
-        })
+        # Emit target detection via Socket.IO (skip for livedata)
+        if target_type != "livedata":
+            push_target_detected({
+                "ts": rec.ts.isoformat(),
+                "target_type": rec.target_type,
+                "details": rec.details_json,
+                "image_url": rec.image_url
+            })
         
         # Consider for Recent Detections (confidence, de-dupe, 4s refresh)
+        # This will also filter out "livedata" in the service itself
         accepted = recent_detections.consider(target_type, details, archived_url, server_ts=ts.timestamp())
         if accepted:
             # Broadcast a dedicated recent-detection event (in addition to existing push_target_detected)

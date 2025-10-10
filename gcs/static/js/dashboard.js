@@ -182,6 +182,13 @@ socket.on("sensor_update", (d) => {
 });
 
 socket.on("target_detected", (e) => {
+    // Filter out "livedata" type (not a real detection)
+    if (e.target_type === "livedata") {
+        // Still refresh the image for live feed, but don't add to list
+        refreshDetection(e);
+        return;
+    }
+    
     const li = document.createElement("li");
     li.innerHTML = `
         <div class="target-item">
@@ -465,7 +472,8 @@ async function loadRecentTargets() {
             if (recentList) {
                 recentList.innerHTML = "";
                 
-                data.forEach(target => {
+                // Filter out "livedata" type (extra safety check)
+                data.filter(target => target.target_type !== "livedata").forEach(target => {
                     const li = document.createElement("li");
                     li.innerHTML = `
                         <div class="target-item">
