@@ -62,15 +62,17 @@ def latest_sensor():
 def sensor_history():
     """Get historical sensor data for graphs (chronological order)"""
     from .models import SensorData
+    from sqlalchemy import select
     limit = request.args.get('limit', 100, type=int)
     
     # Limit to reasonable values
     if limit > 500:
         limit = 500
     
-    # Get recent records and reverse to chronological order (oldest to newest)
-    records = SensorData.query.order_by(SensorData.ts.desc()).limit(limit).all()
-    records.reverse()  # Now oldest to newest
+    # Optimized query: use subquery to get most recent IDs, then order chronologically
+    # This avoids loading all records into memory and then reversing
+    subquery = select(SensorData.id).order_by(SensorData.ts.desc()).limit(limit).scalar_subquery()
+    records = SensorData.query.filter(SensorData.id.in_(subquery)).order_by(SensorData.ts.asc()).all()
     
     return jsonify([{
         "ts": record.ts.isoformat(),

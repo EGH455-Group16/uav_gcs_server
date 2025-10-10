@@ -308,11 +308,68 @@ async function loadHistoricalData() {
         if (data && data.length > 0) {
             console.log(`Loading ${data.length} historical data points`);
             
-            // Process historical data in chronological order
+            // Batch load historical data for better performance
             data.forEach(record => {
-                updateAllCharts(record);
+                const timestamp = record.ts ? new Date(record.ts) : new Date();
+                const timeLabel = formatTime(timestamp);
+                
+                // Add data points to arrays without updating charts
+                if (record.co_ppm !== undefined && record.co_ppm !== null) {
+                    chartData.co.labels.push(timeLabel);
+                    chartData.co.data.push(record.co_ppm);
+                    updateValueDisplay('co', record.co_ppm, 2);
+                }
+                if (record.no2_ppm !== undefined && record.no2_ppm !== null) {
+                    chartData.no2.labels.push(timeLabel);
+                    chartData.no2.data.push(record.no2_ppm);
+                    updateValueDisplay('no2', record.no2_ppm, 2);
+                }
+                if (record.nh3_ppm !== undefined && record.nh3_ppm !== null) {
+                    chartData.nh3.labels.push(timeLabel);
+                    chartData.nh3.data.push(record.nh3_ppm);
+                    updateValueDisplay('nh3', record.nh3_ppm, 2);
+                }
+                if (record.temp_c !== undefined && record.temp_c !== null) {
+                    chartData.temp.labels.push(timeLabel);
+                    chartData.temp.data.push(record.temp_c);
+                    updateValueDisplay('temp', record.temp_c, 1);
+                }
+                if (record.pressure_hpa !== undefined && record.pressure_hpa !== null) {
+                    chartData.press.labels.push(timeLabel);
+                    chartData.press.data.push(record.pressure_hpa);
+                    updateValueDisplay('press', record.pressure_hpa, 1);
+                }
+                if (record.humidity_pct !== undefined && record.humidity_pct !== null) {
+                    chartData.hum.labels.push(timeLabel);
+                    chartData.hum.data.push(record.humidity_pct);
+                    updateValueDisplay('hum', record.humidity_pct, 1);
+                }
+                if (record.light_lux !== undefined && record.light_lux !== null) {
+                    chartData.light.labels.push(timeLabel);
+                    chartData.light.data.push(record.light_lux);
+                    updateValueDisplay('light', record.light_lux, 0);
+                }
+                
+                dataPointCount++;
             });
             
+            // Now update all charts once with the batched data
+            Object.keys(charts).forEach(chartKey => {
+                const chart = charts[chartKey];
+                if (chart) {
+                    const data = chartData[chartKey];
+                    // Trim to MAX_DATA_POINTS if necessary
+                    if (data.labels.length > MAX_DATA_POINTS) {
+                        data.labels = data.labels.slice(-MAX_DATA_POINTS);
+                        data.data = data.data.slice(-MAX_DATA_POINTS);
+                    }
+                    chart.data.labels = data.labels;
+                    chart.data.datasets[0].data = data.data;
+                    chart.update('none'); // Update once without animation
+                }
+            });
+            
+            updateStatus();
             console.log('Historical data loaded successfully');
         } else {
             console.log('No historical data available');
