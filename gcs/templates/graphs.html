@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="container">
+    <header class="dashboard-header">
+        <h1>Real-Time Sensor Graphs</h1>
+        <div class="status-indicators">
+            <span id="graph-last-update">Last update: Never</span>
+            <span id="graph-data-points">Data points: 0</span>
+        </div>
+    </header>
+
+    <section class="main-graphs">
+        <div class="section-header">
+            <h2>Sensor Data (Live Graphs)</h2>
+        </div>
+        <div class="graphs-grid">
+            <!-- CO Chart -->
+            <div class="card gas-sensor">
+                <h3>CO (ppm)</h3>
+                <div class="chart-value" id="chart-value-co">--</div>
+                <div class="unit">parts per million</div>
+                <div class="chart-container">
+                    <canvas id="chart-co"></canvas>
+                </div>
+            </div>
+
+            <!-- NO₂ Chart -->
+            <div class="card gas-sensor">
+                <h3>NO₂ (ppm)</h3>
+                <div class="chart-value" id="chart-value-no2">--</div>
+                <div class="unit">parts per million</div>
+                <div class="chart-container">
+                    <canvas id="chart-no2"></canvas>
+                </div>
+            </div>
+
+            <!-- NH₃ Chart -->
+            <div class="card gas-sensor">
+                <h3>NH₃ (ppm)</h3>
+                <div class="chart-value" id="chart-value-nh3">--</div>
+                <div class="unit">parts per million</div>
+                <div class="chart-container">
+                    <canvas id="chart-nh3"></canvas>
+                </div>
+            </div>
+
+            <!-- Temperature Chart -->
+            <div class="card env-sensor">
+                <h3>Temperature (°C)</h3>
+                <div class="chart-value" id="chart-value-temp">--</div>
+                <div class="unit">celsius</div>
+                <div class="chart-container">
+                    <canvas id="chart-temp"></canvas>
+                </div>
+            </div>
+
+            <!-- Pressure Chart -->
+            <div class="card env-sensor">
+                <h3>Pressure (hPa)</h3>
+                <div class="chart-value" id="chart-value-press">--</div>
+                <div class="unit">hectopascal</div>
+                <div class="chart-container">
+                    <canvas id="chart-press"></canvas>
+                </div>
+            </div>
+
+            <!-- Humidity Chart -->
+            <div class="card env-sensor">
+                <h3>Humidity (%)</h3>
+                <div class="chart-value" id="chart-value-hum">--</div>
+                <div class="unit">percent</div>
+                <div class="chart-container">
+                    <canvas id="chart-hum"></canvas>
+                </div>
+            </div>
+
+            <!-- Light Chart -->
+            <div class="card env-sensor">
+                <h3>Light (lux)</h3>
+                <div class="chart-value" id="chart-value-light">--</div>
+                <div class="unit">lux</div>
+                <div class="chart-container">
+                    <canvas id="chart-light"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+main.container {
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e0e0e0;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.status-indicators {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.main-graphs {
+    margin-bottom: 2rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.graphs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .graphs-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #2196F3;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.card.gas-sensor {
+    border-left-color: #FF9800;
+}
+
+.card.env-sensor {
+    border-left-color: #4CAF50;
+}
+
+.card h3 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+    font-size: 1rem;
+}
+
+.chart-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2196F3;
+    margin-bottom: 0.25rem;
+}
+
+.unit {
+    font-size: 0.8rem;
+    color: #666;
+    text-transform: lowercase;
+    margin-bottom: 1rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 250px;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.chart-container canvas {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Connection status indicator */
+.connection-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: white;
+    color: #333;
+    padding: 0.75rem 1.25rem;
+    border-radius: 25px;
+    border: 2px solid;
+    font-size: 0.85rem;
+    font-weight: 600;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.connection-indicator.connected {
+    border-color: #4CAF50;
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.connection-indicator.disconnected {
+    border-color: #FF9800;
+    background: #fff3e0;
+    color: #f57c00;
+}
+
+.connection-indicator.error {
+    border-color: #F44336;
+    background: #ffebee;
+    color: #c62828;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/graphs.js') }}"></script>
+{% endblock %}
+
