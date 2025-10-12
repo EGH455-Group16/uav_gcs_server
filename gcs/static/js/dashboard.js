@@ -723,13 +723,16 @@ function setMultiplePreviews(items) {
     const timeEl = document.getElementById('meta-time');
     const countEl = document.getElementById('meta-count');
     
-    // Create a map of detections by type
+    // Create a map of detections by type (filter out "livedata")
     const detectionMap = {};
     items.forEach(item => {
         // Handle both 'type' and 'target_type' fields for compatibility
         const itemType = item.type || item.target_type;
         console.log('DEBUG: Processing item:', itemType, item);
-        detectionMap[itemType] = item;
+        // Skip "livedata" type - it's not a real detection
+        if (itemType !== 'livedata') {
+            detectionMap[itemType] = item;
+        }
     });
     
     const activeCount = Object.keys(detectionMap).length;
