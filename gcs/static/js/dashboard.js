@@ -28,7 +28,6 @@ function formatDetails(type, details) {
         return `Reading: <strong>${reading} bar</strong> | Confidence: <strong>${confidence}</strong>`;
     } else if (type === 'aruco') {
         const id = details.id !== undefined ? details.id : 'unknown';
-        const confidence = details.confidence ? (details.confidence * 100).toFixed(1) + '%' : 'N/A';
         
         let position = 'N/A';
         let rotation = 'N/A';
@@ -44,7 +43,7 @@ function formatDetails(type, details) {
             rotation = `[${rotationData.map(v => v.toFixed(3)).join(', ')}]`;
         }
         
-        return `ID: <strong>${id}</strong> | Position: <strong>${position}</strong> | Rotation: <strong>${rotation}</strong> | Confidence: <strong>${confidence}</strong>`;
+        return `ID: <strong>${id}</strong> | Position: <strong>${position}</strong> | Rotation: <strong>${rotation}</strong>`;
     } else {
         // For other types, format nicely
         const confidence = details.confidence ? `Confidence: <strong>${(details.confidence * 100).toFixed(1)}%</strong>` : '';
@@ -592,7 +591,6 @@ function addRecentItem(item) {
         detailsHtml = `Reading: ${reading} bar | Confidence: ${confidence}%`;
     } else if (item.type === 'aruco') {
         const id = item.details?.id || 'unknown';
-        const confidence = item.details?.confidence ? (item.details.confidence * 100).toFixed(1) : '0.0';
         
         // Handle both field name formats: 'pose'/'rotation' and 'tvec'/'rvec'
         const positionData = item.details?.pose || item.details?.tvec;
@@ -601,7 +599,7 @@ function addRecentItem(item) {
         const position = positionData ? `[${positionData.map(v => v.toFixed(3)).join(', ')}]` : 'N/A';
         const rotation = rotationData ? `[${rotationData.map(v => v.toFixed(3)).join(', ')}]` : 'N/A';
         
-        detailsHtml = `ID: ${id} | Position: ${position} | Rotation: ${rotation} | Confidence: ${confidence}%`;
+        detailsHtml = `ID: ${id} | Position: ${position} | Rotation: ${rotation}`;
     } else {
         // Fallback for other types
         detailsHtml = JSON.stringify(item.details || {});
