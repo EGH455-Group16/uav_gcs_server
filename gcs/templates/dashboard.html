@@ -312,6 +312,44 @@ main.container {
     border: none !important;
 }
 
+/* Multiple detections styling */
+.multiple-detections {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.detection-item {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 0.5rem;
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.detection-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.detection-type {
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #4CAF50;
+    text-transform: uppercase;
+    padding: 0.125rem 0.375rem;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 3px;
+}
+
+.detection-details {
+    color: #333;
+    font-size: 0.75rem;
+    font-family: monospace;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
 .card {
     background: white;
     border-radius: 8px;

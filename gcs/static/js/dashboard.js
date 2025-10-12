@@ -248,7 +248,8 @@ socket.on('recent_detection', (item) => {
     // Switch immediately to the new object only if it's not part of a batch
     // (batches will handle preview separately)
     if (!window.batchInProgress) {
-        setPreview(item);
+        // For single detections, show just that one detection
+        setMultiplePreviews([item]);
     }
 });
 
@@ -275,9 +276,9 @@ socket.on('target_batch', (batchData) => {
         addRecentItem(item);
     });
     
-    // Show the last (most recent) detection in the preview
+    // Show all detections in the preview box
     if (recentItems.length > 0) {
-        setPreview(recentItems[recentItems.length - 1]);
+        setMultiplePreviews(recentItems);
     }
     
     // Clear batch flag after a short delay
@@ -625,7 +626,8 @@ function addRecentItem(item) {
         // Add active class to clicked item
         li.classList.add('active');
         
-        setPreview(item);
+        // Show single detection in the preview
+        setMultiplePreviews([item]);
     });
     ul.appendChild(li);  // Append to maintain ascending order (earliest to latest)
 }
@@ -650,6 +652,43 @@ function setPreview(item) {
                 <span class="target-type">${item.type.toUpperCase()}</span>
             </div>
             <div class="target-details">${detailsHtml}</div>
+        `;
+    }
+}
+
+function setMultiplePreviews(items) {
+    const img = document.getElementById('det-img');
+    const meta = document.getElementById('det-meta');
+    
+    if (img && items.length > 0) {
+        const newSrc = items[0].image_url + '?v=' + Date.now();
+        img.src = newSrc;
+    }
+    if (meta) {
+        // Group detections by timestamp (assuming they're all from the same frame)
+        const timeStr = items.length > 0 ? new Date(items[0].ts * 1000).toLocaleTimeString() : 'Unknown time';
+        
+        // Format all detections
+        const detectionHtml = items.map(item => {
+            const detailsHtml = formatDetails(item.type, item.details);
+            return `
+                <div class="detection-item">
+                    <div class="detection-header">
+                        <span class="detection-type">${item.type.toUpperCase()}</span>
+                    </div>
+                    <div class="detection-details">${detailsHtml}</div>
+                </div>
+            `;
+        }).join('');
+        
+        meta.innerHTML = `
+            <div class="target-header">
+                <span class="target-time">[${timeStr}]</span>
+                <span class="target-type">FRAME (${items.length} detections)</span>
+            </div>
+            <div class="multiple-detections">
+                ${detectionHtml}
+            </div>
         `;
     }
 }
