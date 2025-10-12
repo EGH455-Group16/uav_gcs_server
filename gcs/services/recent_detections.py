@@ -40,9 +40,11 @@ class RecentDetections:
         if t == "livedata":
             return None
         
-        conf = float(details.get("confidence", 0.0))
-        if conf < self.min_conf:
-            return None
+        # For ArUco detections, confidence filtering doesn't apply (confidence is not applicable)
+        if t != "aruco":
+            conf = float(details.get("confidence", 0.0))
+            if conf < self.min_conf:
+                return None
 
         item = DetectionItem(ts=server_ts, type=t, details=details, image_url=image_url, thumb_url=image_url)
         now = server_ts

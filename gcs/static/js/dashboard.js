@@ -227,10 +227,12 @@ let detectionBatch = [];
 let batchTimeout = null;
 
 socket.on('recent_detection', (item) => {
+    console.log('DEBUG: Recent detection received:', item);
     addRecentItem(item);
     
     // Add to batch
     detectionBatch.push(item);
+    console.log('DEBUG: Added to batch. Batch size:', detectionBatch.length);
     
     // Clear any existing timeout
     if (batchTimeout) {
@@ -239,13 +241,16 @@ socket.on('recent_detection', (item) => {
     
     // Set a short timeout to batch rapid detections
     batchTimeout = setTimeout(() => {
+        console.log('DEBUG: Processing batch with', detectionBatch.length, 'items');
         // Process the batch
         if (detectionBatch.length > 1) {
             // Multiple detections - sort by timestamp and show all
             const sortedBatch = detectionBatch.sort((a, b) => a.ts - b.ts);
+            console.log('DEBUG: Sending sorted batch to setMultiplePreviews:', sortedBatch);
             setMultiplePreviews(sortedBatch);
         } else {
             // Single detection
+            console.log('DEBUG: Sending single detection to setMultiplePreviews:', detectionBatch);
             setMultiplePreviews(detectionBatch);
         }
         
@@ -681,6 +686,7 @@ function initializeMetadataStructure() {
 }
 
 function setMultiplePreviews(items) {
+    console.log('DEBUG: setMultiplePreviews called with:', items);
     const img = document.getElementById('det-img');
     
     // Initialize structure if needed
@@ -693,17 +699,42 @@ function setMultiplePreviews(items) {
     }
     
     // Update header time and count
-    const timeStr = items.length > 0 ? new Date(items[0].ts * 1000).toLocaleTimeString() : '--:--:--';
+    let timeStr = '--:--:--';
+    if (items.length > 0 && items[0].ts) {
+        try {
+            // Handle different timestamp formats
+            let timestamp;
+            if (typeof items[0].ts === 'number') {
+                timestamp = items[0].ts * 1000; // Convert seconds to milliseconds
+            } else if (typeof items[0].ts === 'string') {
+                timestamp = new Date(items[0].ts).getTime();
+            } else {
+                timestamp = items[0].ts;
+            }
+            
+            if (!isNaN(timestamp)) {
+                timeStr = new Date(timestamp).toLocaleTimeString();
+            }
+        } catch (e) {
+            // Invalid timestamp, keep default
+        }
+    }
+    
     const timeEl = document.getElementById('meta-time');
     const countEl = document.getElementById('meta-count');
     
     // Create a map of detections by type
     const detectionMap = {};
     items.forEach(item => {
-        detectionMap[item.type] = item;
+        // Handle both 'type' and 'target_type' fields for compatibility
+        const itemType = item.type || item.target_type;
+        console.log('DEBUG: Processing item:', itemType, item);
+        detectionMap[itemType] = item;
     });
     
     const activeCount = Object.keys(detectionMap).length;
+    console.log('DEBUG: Detection map:', detectionMap);
+    console.log('DEBUG: Active count:', activeCount);
     
     if (timeEl) timeEl.textContent = `[${timeStr}]`;
     if (countEl) countEl.textContent = `FRAME (${activeCount} detection${activeCount !== 1 ? 's' : ''})`;
@@ -714,18 +745,26 @@ function setMultiplePreviews(items) {
         const slotId = `det-${type}`;
         const slotEl = document.getElementById(slotId);
         if (!slotEl) {
+            console.log('DEBUG: Could not find slot element:', slotId);
             return;
         }
         
         const item = detectionMap[type];
         const detailsEl = slotEl.querySelector('.detection-details');
         
+        console.log('DEBUG: Updating slot', type, 'with item:', item);
+        
         if (item) {
             // Detection present - update content and style
+            console.log('DEBUG: Setting', type, 'as ACTIVE');
             slotEl.classList.remove('detection-item-placeholder');
             slotEl.classList.add('detection-item-active');
             if (detailsEl) {
-                detailsEl.innerHTML = formatDetails(item.type, item.details);
+                // Handle both 'type' and 'target_type' fields for compatibility
+                const itemType = item.type || item.target_type;
+                const formattedDetails = formatDetails(itemType, item.details);
+                console.log('DEBUG: Formatted details for', type, ':', formattedDetails);
+                detailsEl.innerHTML = formattedDetails;
             }
         } else {
             // No detection - show placeholder with persistent labels
