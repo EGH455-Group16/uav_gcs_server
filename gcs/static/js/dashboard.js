@@ -29,17 +29,18 @@ function formatDetails(type, details) {
     } else if (type === 'aruco') {
         const id = details.id !== undefined ? details.id : 'unknown';
         const confidence = details.confidence ? (details.confidence * 100).toFixed(1) + '%' : 'N/A';
-        let html = `ID: <strong>${id}</strong> | Confidence: <strong>${confidence}</strong>`;
         
-        if (details.tvec) {
-            const pos = details.tvec.map(v => v.toFixed(2)).join(', ');
-            html += `<br>Position: [${pos}]`;
+        let position = 'N/A';
+        let rotation = 'N/A';
+        
+        if (details.tvec && Array.isArray(details.tvec)) {
+            position = `[${details.tvec.map(v => v.toFixed(3)).join(', ')}]`;
         }
-        if (details.rvec) {
-            const rot = details.rvec.map(v => v.toFixed(2)).join(', ');
-            html += `<br>Rotation: [${rot}]`;
+        if (details.rvec && Array.isArray(details.rvec)) {
+            rotation = `[${details.rvec.map(v => v.toFixed(3)).join(', ')}]`;
         }
-        return html;
+        
+        return `ID: <strong>${id}</strong> | Position: <strong>${position}</strong> | Rotation: <strong>${rotation}</strong> | Confidence: <strong>${confidence}</strong>`;
     } else {
         // For other types, format nicely
         const confidence = details.confidence ? `Confidence: <strong>${(details.confidence * 100).toFixed(1)}%</strong>` : '';
@@ -241,8 +242,45 @@ socket.on("throughput_update", data => {
 
 socket.on('recent_detection', (item) => {
     addRecentItem(item);
-    // Switch immediately to the new object
-    setPreview(item);
+    // Switch immediately to the new object only if it's not part of a batch
+    // (batches will handle preview separately)
+    if (!window.batchInProgress) {
+        setPreview(item);
+    }
+});
+
+// Handle batch detections to prevent flickering
+socket.on('target_batch', (batchData) => {
+    console.log(`Received batch of ${batchData.count} detections`);
+    
+    // Set batch flag to prevent individual recent_detection events from updating preview
+    window.batchInProgress = true;
+    
+    // Convert all detections to recent detection format and sort by timestamp
+    const recentItems = batchData.detections
+        .map(detection => ({
+            ts: new Date(detection.ts).getTime() / 1000, // Convert to epoch seconds
+            type: detection.target_type,
+            details: detection.details,
+            image_url: batchData.image_url,
+            thumb_url: batchData.thumb_url
+        }))
+        .sort((a, b) => a.ts - b.ts); // Sort by timestamp to maintain order
+    
+    // Add all detections to the recent list in order
+    recentItems.forEach(item => {
+        addRecentItem(item);
+    });
+    
+    // Show the last (most recent) detection in the preview
+    if (recentItems.length > 0) {
+        setPreview(recentItems[recentItems.length - 1]);
+    }
+    
+    // Clear batch flag after a short delay
+    setTimeout(() => {
+        window.batchInProgress = false;
+    }, 100);
 });
 
 function updateDataCounters() {
@@ -551,9 +589,9 @@ function addRecentItem(item) {
     } else if (item.type === 'aruco') {
         const id = item.details?.id || 'unknown';
         const confidence = item.details?.confidence ? (item.details.confidence * 100).toFixed(1) : '0.0';
-        const position = item.details?.tvec ? `[${item.details.tvec.map(v => v.toFixed(3)).join(', ')}]` : 'unknown';
-        const rotation = item.details?.rvec ? `[${item.details.rvec.map(v => v.toFixed(3)).join(', ')}]` : 'unknown';
-        detailsHtml = `ID: ${id} | Confidence: ${confidence}% | Position: ${position} | Rotation: ${rotation}`;
+        const position = item.details?.tvec ? `[${item.details.tvec.map(v => v.toFixed(3)).join(', ')}]` : 'N/A';
+        const rotation = item.details?.rvec ? `[${item.details.rvec.map(v => v.toFixed(3)).join(', ')}]` : 'N/A';
+        detailsHtml = `ID: ${id} | Position: ${position} | Rotation: ${rotation} | Confidence: ${confidence}%`;
     } else {
         // Fallback for other types
         detailsHtml = JSON.stringify(item.details || {});

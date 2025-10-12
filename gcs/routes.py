@@ -388,10 +388,17 @@ def api_targets():
         # Check if we have a top-level target_type field
         legacy_target_type = (request.form.get("target_type") if request.form else None) or \
                              (request.json.get("target_type") if request.is_json else None)
+        legacy_confidence = (request.form.get("confidence") if request.form else None) or \
+                           (request.json.get("confidence") if request.is_json else None)
         
         if not detections and legacy_target_type:
             # Old-style API: target_type at top level, details is just the details object
             legacy_details = parse_details(raw_details if raw_details is not None else {})
+            
+            # Add top-level confidence to details if present
+            if legacy_confidence is not None:
+                legacy_details["confidence"] = float(legacy_confidence)
+            
             detections = [{
                 "target_type": legacy_target_type,
                 "details": legacy_details
@@ -424,6 +431,11 @@ def api_targets():
                 continue
             target_type = det.get("target_type") or "unknown"
             details_obj = parse_details(det.get("details", {}))
+            
+            # Merge top-level confidence into details if present
+            if "confidence" in det:
+                details_obj["confidence"] = det["confidence"]
+            
             det_ts = det.get("ts")
             try:
                 ts = datetime.fromisoformat(det_ts.replace("Z", "+00:00")) if det_ts else (top_ts or server_ts)
