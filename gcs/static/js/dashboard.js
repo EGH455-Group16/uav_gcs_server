@@ -659,7 +659,7 @@ function initializeMetadataStructure() {
     meta.innerHTML = `
         <div class="target-header">
             <span class="target-time" id="meta-time">[--:--:--]</span>
-            <span class="target-type" id="meta-count">FRAME (0 detections)</span>
+            <span class="target-type" id="meta-count">FRAME (0 DETECTIONS)</span>
         </div>
         <div class="multiple-detections">
             <div class="detection-item detection-item-placeholder" id="det-aruco">
@@ -737,7 +737,13 @@ function setMultiplePreviews(items) {
     console.log('DEBUG: Active count:', activeCount);
     
     if (timeEl) timeEl.textContent = `[${timeStr}]`;
-    if (countEl) countEl.textContent = `FRAME (${activeCount} detection${activeCount !== 1 ? 's' : ''})`;
+    if (countEl) {
+        if (activeCount === 0) {
+            countEl.textContent = 'FRAME (0 DETECTIONS)';
+        } else {
+            countEl.textContent = `FRAME (${activeCount} detection${activeCount !== 1 ? 's' : ''})`;
+        }
+    }
     
     // Update each detection slot (only update content, not structure)
     const detectionTypes = ['aruco', 'gauge', 'valve'];
