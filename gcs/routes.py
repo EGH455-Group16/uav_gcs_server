@@ -460,6 +460,7 @@ def api_targets():
         log_request(request, 201)
 
         # 6) Broadcast per detection & feed "recent_detections"
+        accepted_detections = []
         for s in saved:
             push_target_detected({
                 "ts": s["ts"],
@@ -478,29 +479,32 @@ def api_targets():
                     server_ts=server_ts.timestamp(),
                 )
                 if accepted:
-                    # Broadcast a dedicated recent-detection event
-                    from . import socketio
-                    socketio.emit("recent_detection", {
+                    accepted_detections.append({
                         "ts": accepted.ts,
                         "type": accepted.type,
                         "details": accepted.details,
                         "image_url": accepted.image_url,
                         "thumb_url": accepted.thumb_url
-                    }, namespace="/stream")
+                    })
             except Exception:
                 # non-fatal
                 pass
 
-        # (Optional) also emit a single batch event if your UI listens for it
+        # Emit events based on detection count to prevent flickering
         try:
             from . import socketio
-            socketio.emit("target_batch", {
-                "count": created,
-                "image_url": final_image_url,
-                "thumb_url": final_thumb_url,
-                "device_id": device_id,
-                "detections": saved
-            }, namespace="/stream")
+            if len(accepted_detections) == 1:
+                # Single detection - emit individual event
+                socketio.emit("recent_detection", accepted_detections[0], namespace="/stream")
+            elif len(accepted_detections) > 1:
+                # Multiple detections - emit batch event only
+                socketio.emit("target_batch", {
+                    "count": len(accepted_detections),
+                    "image_url": final_image_url,
+                    "thumb_url": final_thumb_url,
+                    "device_id": device_id,
+                    "detections": accepted_detections
+                }, namespace="/stream")
         except Exception:
             pass
 

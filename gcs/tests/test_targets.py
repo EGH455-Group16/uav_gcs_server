@@ -36,9 +36,9 @@ def post(target_type, details, label):
     print(f"[SINGLE] {target_type}: {r.status_code}")
     if r.status_code == 201:
         result = r.json()
-        print(f"  → Saved {result.get('saved', 1)} detection(s)")
+        print(f"  -> Saved {result.get('saved', 1)} detection(s)")
     else:
-        print(f"  → Error: {r.text}")
+        print(f"  -> Error: {r.text}")
     return r
 
 def post_batch(detections, label):
@@ -53,11 +53,11 @@ def post_batch(detections, label):
     print(f"[BATCH] {len(detections)} detections: {r.status_code}")
     if r.status_code == 201:
         result = r.json()
-        print(f"  → Saved {result['saved']} detection(s)")
+        print(f"  -> Saved {result['saved']} detection(s)")
         for det in result['detections']:
             print(f"     - {det['target_type']}: {json.dumps(det['details'])}")
     else:
-        print(f"  → Error: {r.text}")
+        print(f"  -> Error: {r.text}")
     return r
 
 print("\n" + "="*60)

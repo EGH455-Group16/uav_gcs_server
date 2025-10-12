@@ -245,30 +245,16 @@ socket.on("throughput_update", data => {
 
 socket.on('recent_detection', (item) => {
     addRecentItem(item);
-    // Switch immediately to the new object only if it's not part of a batch
-    // (batches will handle preview separately)
-    if (!window.batchInProgress) {
-        // For single detections, show just that one detection
-        setMultiplePreviews([item]);
-    }
+    // For single detections, show just that one detection
+    setMultiplePreviews([item]);
 });
 
 // Handle batch detections to prevent flickering
 socket.on('target_batch', (batchData) => {
     console.log(`Received batch of ${batchData.count} detections`);
     
-    // Set batch flag to prevent individual recent_detection events from updating preview
-    window.batchInProgress = true;
-    
     // Convert all detections to recent detection format and sort by timestamp
     const recentItems = batchData.detections
-        .map(detection => ({
-            ts: new Date(detection.ts).getTime() / 1000, // Convert to epoch seconds
-            type: detection.target_type,
-            details: detection.details,
-            image_url: batchData.image_url,
-            thumb_url: batchData.thumb_url
-        }))
         .sort((a, b) => a.ts - b.ts); // Sort by timestamp to maintain order
     
     // Add all detections to the recent list in order
@@ -280,11 +266,6 @@ socket.on('target_batch', (batchData) => {
     if (recentItems.length > 0) {
         setMultiplePreviews(recentItems);
     }
-    
-    // Clear batch flag after a short delay
-    setTimeout(() => {
-        window.batchInProgress = false;
-    }, 100);
 });
 
 function updateDataCounters() {
