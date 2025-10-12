@@ -33,11 +33,15 @@ function formatDetails(type, details) {
         let position = 'N/A';
         let rotation = 'N/A';
         
-        if (details.tvec && Array.isArray(details.tvec)) {
-            position = `[${details.tvec.map(v => v.toFixed(3)).join(', ')}]`;
+        // Handle both field name formats: 'pose'/'rotation' and 'tvec'/'rvec'
+        const positionData = details.pose || details.tvec;
+        const rotationData = details.rotation || details.rvec;
+        
+        if (positionData && Array.isArray(positionData)) {
+            position = `[${positionData.map(v => v.toFixed(3)).join(', ')}]`;
         }
-        if (details.rvec && Array.isArray(details.rvec)) {
-            rotation = `[${details.rvec.map(v => v.toFixed(3)).join(', ')}]`;
+        if (rotationData && Array.isArray(rotationData)) {
+            rotation = `[${rotationData.map(v => v.toFixed(3)).join(', ')}]`;
         }
         
         return `ID: <strong>${id}</strong> | Position: <strong>${position}</strong> | Rotation: <strong>${rotation}</strong> | Confidence: <strong>${confidence}</strong>`;
@@ -589,8 +593,14 @@ function addRecentItem(item) {
     } else if (item.type === 'aruco') {
         const id = item.details?.id || 'unknown';
         const confidence = item.details?.confidence ? (item.details.confidence * 100).toFixed(1) : '0.0';
-        const position = item.details?.tvec ? `[${item.details.tvec.map(v => v.toFixed(3)).join(', ')}]` : 'N/A';
-        const rotation = item.details?.rvec ? `[${item.details.rvec.map(v => v.toFixed(3)).join(', ')}]` : 'N/A';
+        
+        // Handle both field name formats: 'pose'/'rotation' and 'tvec'/'rvec'
+        const positionData = item.details?.pose || item.details?.tvec;
+        const rotationData = item.details?.rotation || item.details?.rvec;
+        
+        const position = positionData ? `[${positionData.map(v => v.toFixed(3)).join(', ')}]` : 'N/A';
+        const rotation = rotationData ? `[${rotationData.map(v => v.toFixed(3)).join(', ')}]` : 'N/A';
+        
         detailsHtml = `ID: ${id} | Position: ${position} | Rotation: ${rotation} | Confidence: ${confidence}%`;
     } else {
         // Fallback for other types
