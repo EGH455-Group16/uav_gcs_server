@@ -461,15 +461,20 @@ def api_targets():
 
         # 6) Broadcast per detection & feed "recent_detections"
         accepted_detections = []
+        is_batch = (created > 1)  # Flag to suppress individual socket events for batches
+        
         for s in saved:
-            push_target_detected({
-                "ts": s["ts"],
-                "target_type": s["target_type"],
-                "details": s["details"],
-                "image_url": final_image_url,
-                "thumb_url": final_thumb_url,
-                "device_id": device_id
-            })
+            # Still call push_target_detected for logging, but skip socket emission for batches
+            # We'll emit a batch event instead
+            if not is_batch:
+                push_target_detected({
+                    "ts": s["ts"],
+                    "target_type": s["target_type"],
+                    "details": s["details"],
+                    "image_url": final_image_url,
+                    "thumb_url": final_thumb_url,
+                    "device_id": device_id
+                })
             try:
                 # Use server timestamp seconds for de-dupe windowing
                 accepted = recent_detections.consider(
@@ -490,14 +495,16 @@ def api_targets():
                 # non-fatal
                 pass
 
-        # Emit events based on detection count to prevent flickering
+        # Emit events based on ORIGINAL detection count (not filtered count)
+        # This prevents flickering when multiple detections arrive together
         try:
             from . import socketio
-            if len(accepted_detections) == 1:
+            if created == 1 and len(accepted_detections) == 1:
                 # Single detection - emit individual event
                 socketio.emit("recent_detection", accepted_detections[0], namespace="/stream")
-            elif len(accepted_detections) > 1:
-                # Multiple detections - emit batch event only
+            elif created > 1 and len(accepted_detections) > 0:
+                # Multiple detections sent together - always emit batch event
+                # Even if some were filtered by deduplication
                 socketio.emit("target_batch", {
                     "count": len(accepted_detections),
                     "image_url": final_image_url,
@@ -505,6 +512,7 @@ def api_targets():
                     "device_id": device_id,
                     "detections": accepted_detections
                 }, namespace="/stream")
+            # If all detections were filtered (len(accepted_detections) == 0), emit nothing
         except Exception:
             pass
 

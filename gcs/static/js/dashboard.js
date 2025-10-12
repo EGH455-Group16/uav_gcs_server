@@ -9,7 +9,6 @@ const socket = io(ns, {
     forceNew: true
 });
 
-console.log("Attempting to connect to Socket.IO namespace:", ns);
 
 function set(id, v) { 
     document.getElementById(id).textContent = v; 
@@ -62,70 +61,50 @@ function refreshDetection(meta) {
         img.src = '/static/targets/latest.jpg?bust=' + Date.now();
         
         img.onerror = function() {
-            console.log("Detection image not available or failed to load");
+            // Image not available
         };
         
         img.onload = function() {
-            console.log("Detection image refreshed successfully");
+            // Image loaded successfully
         };
     }
 
+    // If meta is provided, use the new setMultiplePreviews function instead of overwriting structure
     if (meta) {
-        const el = document.getElementById('det-meta');
-        if (el) {
-            const { target_type, ts, details } = meta;
-            
-            // Use the formatDetails function for consistent formatting
-            const detailsHtml = formatDetails(target_type, details);
-            const timeStr = ts ? new Date(ts).toLocaleTimeString() : 'Unknown';
-            
-            el.innerHTML = `
-                <div class="target-header">
-                    <span class="target-time">[${timeStr}]</span>
-                    <span class="target-type">${target_type ? target_type.toUpperCase() : 'UNKNOWN'}</span>
-                </div>
-                <div class="target-details">${detailsHtml}</div>
-            `;
-        }
+        setMultiplePreviews([meta]);
     }
 }
 
 socket.on("connect", () => {
-    console.log("Connected to GCS stream");
     document.title = "UAV GCS - Connected";
     updateConnectionStatus("connected");
     addLogEntry("info", "Connected to GCS stream");
 });
 
 socket.on("disconnect", (reason) => {
-    console.log("Disconnected from GCS stream:", reason);
     document.title = "UAV GCS - Disconnected";
     updateConnectionStatus("disconnected");
     addLogEntry("warning", `Disconnected from GCS stream: ${reason}`);
 });
 
 socket.on("connect_error", (error) => {
-    console.error("Connection error:", error);
     document.title = "UAV GCS - Connection Error";
     updateConnectionStatus("error");
     addLogEntry("error", `Connection error: ${error}`);
 });
 
 socket.on("reconnect", (attemptNumber) => {
-    console.log("Reconnected after", attemptNumber, "attempts");
     document.title = "UAV GCS - Connected";
     updateConnectionStatus("connected");
     addLogEntry("info", `Reconnected after ${attemptNumber} attempts`);
 });
 
 socket.on("reconnect_error", (error) => {
-    console.error("Reconnection error:", error);
     updateConnectionStatus("error");
     addLogEntry("error", `Reconnection error: ${error}`);
 });
 
 socket.on("reconnect_failed", () => {
-    console.error("Failed to reconnect after maximum attempts");
     updateConnectionStatus("failed");
     addLogEntry("error", "Failed to reconnect after maximum attempts");
 });
@@ -243,16 +222,41 @@ socket.on("throughput_update", data => {
         `Updated: ${new Date(data.ts * 1000).toLocaleTimeString()}`;
 });
 
+// Client-side batching for rapid individual detections
+let detectionBatch = [];
+let batchTimeout = null;
+
 socket.on('recent_detection', (item) => {
     addRecentItem(item);
-    // For single detections, show just that one detection
-    setMultiplePreviews([item]);
+    
+    // Add to batch
+    detectionBatch.push(item);
+    
+    // Clear any existing timeout
+    if (batchTimeout) {
+        clearTimeout(batchTimeout);
+    }
+    
+    // Set a short timeout to batch rapid detections
+    batchTimeout = setTimeout(() => {
+        // Process the batch
+        if (detectionBatch.length > 1) {
+            // Multiple detections - sort by timestamp and show all
+            const sortedBatch = detectionBatch.sort((a, b) => a.ts - b.ts);
+            setMultiplePreviews(sortedBatch);
+        } else {
+            // Single detection
+            setMultiplePreviews(detectionBatch);
+        }
+        
+        // Clear the batch
+        detectionBatch = [];
+        batchTimeout = null;
+    }, 50); // 50ms batching window
 });
 
 // Handle batch detections to prevent flickering
 socket.on('target_batch', (batchData) => {
-    console.log(`Received batch of ${batchData.count} detections`);
-    
     // Convert all detections to recent detection format and sort by timestamp
     const recentItems = batchData.detections
         .sort((a, b) => a.ts - b.ts); // Sort by timestamp to maintain order
@@ -281,90 +285,6 @@ function updateLastUpdateTime() {
         lastUpdateElement.textContent = `Last update: ${new Date().toLocaleTimeString()}`;
     }
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-    const clearTargetsBtn = document.getElementById("clear-targets");
-    if (clearTargetsBtn) {
-        clearTargetsBtn.addEventListener("click", async () => {
-            // Ask for confirmation
-            if (!confirm("Are you sure you want to clear ALL history? This will delete all database records, images, and reset all counters. This action cannot be undone.")) {
-                return;
-            }
-            
-            try {
-                // Call the clear history API endpoint
-                const response = await fetch('/api/clear-history', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Failed to clear history');
-                }
-                
-                const result = await response.json();
-                
-                // Clear the UI
-                const recentList = document.getElementById("recent-list");
-                if (recentList) {
-                    recentList.innerHTML = "";
-                }
-                
-                // Reset counters
-                targetDetectionCount = 0;
-                sensorUpdateCount = 0;
-                localStorage.setItem('targetDetectionCount', '0');
-                localStorage.setItem('sensorUpdateCount', '0');
-                updateDataCounters();
-                
-                addLogEntry("success", "All history cleared successfully - database, images, and counters reset");
-            } catch (error) {
-                console.error("Error clearing history:", error);
-                addLogEntry("error", `Failed to clear history: ${error.message}`);
-            }
-        });
-    }
-
-    // Live Camera button functionality
-    const liveCameraBtn = document.getElementById("live-camera-btn");
-    if (liveCameraBtn) {
-        liveCameraBtn.addEventListener("click", () => {
-            switchToLiveCamera();
-        });
-    }
-
-    const clearLogsBtn = document.getElementById("clear-logs");
-    if (clearLogsBtn) {
-        clearLogsBtn.addEventListener("click", () => {
-            document.getElementById("logs-area").textContent = "";
-        });
-    }
-
-    const logLevelSelect = document.getElementById("log-level");
-    if (logLevelSelect) {
-        logLevelSelect.addEventListener("change", (e) => {
-            console.log("Log level filter changed to:", e.target.value);
-        });
-    }
-
-    const resetCountersBtn = document.getElementById("reset-counters");
-    if (resetCountersBtn) {
-        resetCountersBtn.addEventListener("click", () => {
-            sensorUpdateCount = 0;
-            targetDetectionCount = 0;
-            localStorage.setItem('sensorUpdateCount', '0');
-            localStorage.setItem('targetDetectionCount', '0');
-            updateDataCounters();
-            addLogEntry("info", "All counters reset");
-        });
-    }
-
-    // Device control functionality
-    setupDeviceControls();
-});
 
 function setupDeviceControls() {
     const modeButtons = document.querySelectorAll('.mode-btn');
@@ -439,9 +359,97 @@ function addLogEntry(level, message) {
     }
 }
 
+// Single consolidated DOMContentLoaded event listener
 document.addEventListener("DOMContentLoaded", async () => {
+    // CRITICAL: Initialize the fixed metadata structure FIRST
+    initializeMetadataStructure();
+    
     addLogEntry("info", "UAV GCS Dashboard initialized");
     
+    // Set up button event listeners
+    const clearTargetsBtn = document.getElementById("clear-targets");
+    if (clearTargetsBtn) {
+        clearTargetsBtn.addEventListener("click", async () => {
+            // Ask for confirmation
+            if (!confirm("Are you sure you want to clear ALL history? This will delete all database records, images, and reset all counters. This action cannot be undone.")) {
+                return;
+            }
+            
+            try {
+                // Call the clear history API endpoint
+                const response = await fetch('/api/clear-history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Failed to clear history');
+                }
+                
+                const result = await response.json();
+                
+                // Clear the UI
+                const recentList = document.getElementById("recent-list");
+                if (recentList) {
+                    recentList.innerHTML = "";
+                }
+                
+                // Reset counters
+                targetDetectionCount = 0;
+                sensorUpdateCount = 0;
+                localStorage.setItem('targetDetectionCount', '0');
+                localStorage.setItem('sensorUpdateCount', '0');
+                updateDataCounters();
+                
+                addLogEntry("success", "All history cleared successfully - database, images, and counters reset");
+            } catch (error) {
+                console.error("Error clearing history:", error);
+                addLogEntry("error", `Failed to clear history: ${error.message}`);
+            }
+        });
+    }
+
+    // Live Camera button functionality
+    const liveCameraBtn = document.getElementById("live-camera-btn");
+    if (liveCameraBtn) {
+        liveCameraBtn.addEventListener("click", () => {
+            switchToLiveCamera();
+        });
+    }
+
+    const clearLogsBtn = document.getElementById("clear-logs");
+    if (clearLogsBtn) {
+        clearLogsBtn.addEventListener("click", () => {
+            document.getElementById("logs-area").textContent = "";
+        });
+    }
+
+    const logLevelSelect = document.getElementById("log-level");
+    if (logLevelSelect) {
+        logLevelSelect.addEventListener("change", (e) => {
+            // Log level filter changed
+        });
+    }
+
+    const resetCountersBtn = document.getElementById("reset-counters");
+    if (resetCountersBtn) {
+        resetCountersBtn.addEventListener("click", () => {
+            sensorUpdateCount = 0;
+            targetDetectionCount = 0;
+            localStorage.setItem('sensorUpdateCount', '0');
+            localStorage.setItem('targetDetectionCount', '0');
+            updateDataCounters();
+            addLogEntry("info", "All counters reset");
+        });
+    }
+
+    // Device control functionality
+    setupDeviceControls();
+    
+    // Load data
     updateDataCounters();
     
     await loadLatestSensorData();
@@ -480,7 +488,6 @@ async function loadLatestSensorData() {
             addLogEntry("info", "No sensor data found in database");
         }
     } catch (error) {
-        console.error('Error loading latest sensor data:', error);
         addLogEntry("error", "Failed to load latest sensor data from database");
     }
 }
@@ -514,8 +521,6 @@ async function loadRecentTargets() {
                     `;
                     recentList.appendChild(li);
                 });
-            } else {
-                console.warn("recent-list element not found");
             }
             
             addLogEntry("info", `Loaded ${data.length} recent target detections from database`);
@@ -523,7 +528,6 @@ async function loadRecentTargets() {
             addLogEntry("info", "No target detections found in database");
         }
     } catch (error) {
-        console.error('Error loading recent targets:', error);
         addLogEntry("error", "Failed to load recent target detections from database");
     }
 }
@@ -535,7 +539,7 @@ async function loadRecent() {
         const data = await res.json();
         renderRecentList(data);
     } catch (e) { 
-        console.warn('recent load failed', e); 
+        // Recent load failed
     }
 }
 
@@ -637,41 +641,110 @@ function setPreview(item) {
     }
 }
 
+function initializeMetadataStructure() {
+    const meta = document.getElementById('det-meta');
+    if (!meta) {
+        return;
+    }
+    if (meta.dataset.initialized) {
+        return;
+    }
+    
+    // Create the fixed structure once with persistent labels
+    meta.innerHTML = `
+        <div class="target-header">
+            <span class="target-time" id="meta-time">[--:--:--]</span>
+            <span class="target-type" id="meta-count">FRAME (0 detections)</span>
+        </div>
+        <div class="multiple-detections">
+            <div class="detection-item detection-item-placeholder" id="det-aruco">
+                <div class="detection-header">
+                    <span class="detection-type">ARUCO</span>
+                </div>
+                <div class="detection-details">ID: <strong>--</strong> | Position: <strong>[--, --, --]</strong> | Rotation: <strong>[--, --, --]</strong></div>
+            </div>
+            <div class="detection-item detection-item-placeholder" id="det-gauge">
+                <div class="detection-header">
+                    <span class="detection-type">GAUGE</span>
+                </div>
+                <div class="detection-details">Reading: <strong>-- bar</strong> | Confidence: <strong>--%</strong></div>
+            </div>
+            <div class="detection-item detection-item-placeholder" id="det-valve">
+                <div class="detection-header">
+                    <span class="detection-type">VALVE</span>
+                </div>
+                <div class="detection-details">State: <strong>--</strong> | Confidence: <strong>--%</strong></div>
+            </div>
+        </div>
+    `;
+    meta.dataset.initialized = 'true';
+}
+
 function setMultiplePreviews(items) {
     const img = document.getElementById('det-img');
-    const meta = document.getElementById('det-meta');
     
+    // Initialize structure if needed
+    initializeMetadataStructure();
+    
+    // Update image
     if (img && items.length > 0) {
         const newSrc = items[0].image_url + '?v=' + Date.now();
         img.src = newSrc;
     }
-    if (meta) {
-        // Group detections by timestamp (assuming they're all from the same frame)
-        const timeStr = items.length > 0 ? new Date(items[0].ts * 1000).toLocaleTimeString() : 'Unknown time';
+    
+    // Update header time and count
+    const timeStr = items.length > 0 ? new Date(items[0].ts * 1000).toLocaleTimeString() : '--:--:--';
+    const timeEl = document.getElementById('meta-time');
+    const countEl = document.getElementById('meta-count');
+    
+    // Create a map of detections by type
+    const detectionMap = {};
+    items.forEach(item => {
+        detectionMap[item.type] = item;
+    });
+    
+    const activeCount = Object.keys(detectionMap).length;
+    
+    if (timeEl) timeEl.textContent = `[${timeStr}]`;
+    if (countEl) countEl.textContent = `FRAME (${activeCount} detection${activeCount !== 1 ? 's' : ''})`;
+    
+    // Update each detection slot (only update content, not structure)
+    const detectionTypes = ['aruco', 'gauge', 'valve'];
+    detectionTypes.forEach(type => {
+        const slotId = `det-${type}`;
+        const slotEl = document.getElementById(slotId);
+        if (!slotEl) {
+            return;
+        }
         
-        // Format all detections
-        const detectionHtml = items.map(item => {
-            const detailsHtml = formatDetails(item.type, item.details);
-            return `
-                <div class="detection-item">
-                    <div class="detection-header">
-                        <span class="detection-type">${item.type.toUpperCase()}</span>
-                    </div>
-                    <div class="detection-details">${detailsHtml}</div>
-                </div>
-            `;
-        }).join('');
+        const item = detectionMap[type];
+        const detailsEl = slotEl.querySelector('.detection-details');
         
-        meta.innerHTML = `
-            <div class="target-header">
-                <span class="target-time">[${timeStr}]</span>
-                <span class="target-type">FRAME (${items.length} detections)</span>
-            </div>
-            <div class="multiple-detections">
-                ${detectionHtml}
-            </div>
-        `;
-    }
+        if (item) {
+            // Detection present - update content and style
+            slotEl.classList.remove('detection-item-placeholder');
+            slotEl.classList.add('detection-item-active');
+            if (detailsEl) {
+                detailsEl.innerHTML = formatDetails(item.type, item.details);
+            }
+        } else {
+            // No detection - show placeholder with persistent labels
+            slotEl.classList.remove('detection-item-active');
+            slotEl.classList.add('detection-item-placeholder');
+            if (detailsEl) {
+                // Show placeholder with the same label structure but with -- values
+                if (type === 'aruco') {
+                    detailsEl.innerHTML = 'ID: <strong>--</strong> | Position: <strong>[--, --, --]</strong> | Rotation: <strong>[--, --, --]</strong>';
+                } else if (type === 'gauge') {
+                    detailsEl.innerHTML = 'Reading: <strong>-- bar</strong> | Confidence: <strong>--%</strong>';
+                } else if (type === 'valve') {
+                    detailsEl.innerHTML = 'State: <strong>--</strong> | Confidence: <strong>--%</strong>';
+                } else {
+                    detailsEl.innerHTML = '<span class="detection-placeholder">No detection</span>';
+                }
+            }
+        }
+    });
 }
 
 function switchToLiveCamera() {
@@ -684,16 +757,40 @@ function switchToLiveCamera() {
         img.src = '/static/targets/latest.jpg?v=' + Date.now();
     }
     
-    // Reset metadata to show live status
+    // Reset metadata to show live status - but preserve the fixed structure
     const meta = document.getElementById('det-meta');
     if (meta) {
-        meta.innerHTML = `
-            <div class="target-header">
-                <span class="target-time">[LIVE]</span>
-                <span class="target-type">LIVE CAMERA</span>
-            </div>
-            <div class="target-details">Monitoring live camera feed...</div>
-        `;
+        // Initialize structure if needed
+        initializeMetadataStructure();
+        
+        // Update header to show live status
+        const timeEl = document.getElementById('meta-time');
+        const countEl = document.getElementById('meta-count');
+        if (timeEl) timeEl.textContent = '[LIVE]';
+        if (countEl) countEl.textContent = 'LIVE CAMERA';
+        
+        // Reset all detection slots to placeholder state with persistent labels
+        const detectionTypes = ['aruco', 'gauge', 'valve'];
+        detectionTypes.forEach(type => {
+            const slotEl = document.getElementById(`det-${type}`);
+            if (slotEl) {
+                slotEl.classList.remove('detection-item-active');
+                slotEl.classList.add('detection-item-placeholder');
+                const detailsEl = slotEl.querySelector('.detection-details');
+                if (detailsEl) {
+                    // Show placeholder with the same label structure but with -- values
+                    if (type === 'aruco') {
+                        detailsEl.innerHTML = 'ID: <strong>--</strong> | Position: <strong>[--, --, --]</strong> | Rotation: <strong>[--, --, --]</strong>';
+                    } else if (type === 'gauge') {
+                        detailsEl.innerHTML = 'Reading: <strong>-- bar</strong> | Confidence: <strong>--%</strong>';
+                    } else if (type === 'valve') {
+                        detailsEl.innerHTML = 'State: <strong>--</strong> | Confidence: <strong>--%</strong>';
+                    } else {
+                        detailsEl.innerHTML = '<span class="detection-placeholder">No detection</span>';
+                    }
+                }
+            }
+        });
     }
     
     addLogEntry("info", "Switched to live camera view");

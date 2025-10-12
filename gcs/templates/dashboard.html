@@ -324,6 +324,24 @@ main.container {
     border-radius: 4px;
     padding: 0.5rem;
     background: rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
+}
+
+.detection-item-active {
+    background: rgba(76, 175, 80, 0.05);
+    border-left: 3px solid #4CAF50;
+}
+
+.detection-item-placeholder {
+    background: rgba(0, 0, 0, 0.01);
+    border-left: 3px solid #ccc;
+    opacity: 0.6;
+}
+
+.detection-placeholder {
+    color: #999;
+    font-style: italic;
+    font-size: 0.75rem;
 }
 
 .detection-header {
