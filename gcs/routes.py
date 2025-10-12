@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 
 from flask import Blueprint, request, jsonify, render_template
 
@@ -262,147 +263,243 @@ def api_sensors():
 @cors_headers
 def api_targets():
     """
-    Robust POST /api/targets endpoint that accepts either:
-    - multipart/form-data with file (JPEG/PNG) + form fields
-    - application/json with image_b64 (data URL or raw base64) + fields
+    POST /api/targets
+    Accepts:
+      - multipart/form-data with:
+          file: JPEG/PNG
+          details: JSON (object OR array of detection items)
+          ts: ISO string (optional fallback timestamp)
+          device_id: optional
+          target_type: optional (back-compat; ignored if details is array with per-item target_type)
+      - application/json with:
+          image_b64: data URL OR raw base64
+          details: object OR array of detection items
+          ts, device_id: optional
+
+    Behavior:
+      - Saves/archives image ONCE, reuses same URLs for all detection rows
+      - Creates one TargetDetection row per detection item
+      - Emits push + recent_detections per detection
+      - Responds with batch summary
     """
     try:
-        # Measure payload size for TAIP
+        # 1) TAIP metering
         nbytes = request.content_length or len(request.get_data(cache=True) or b"")
         throughput_meter.add("TAIP", nbytes)
-        
-        # Get current timestamp
-        ts = datetime.utcnow()
-        target_type = None
-        details = {}
-        image_url = get_image_url()
-        
-        # Branch by Content-Type
+
+        # 2) Defaults
+        server_ts = datetime.utcnow()
+        image_url_latest = get_image_url()
+        archived_url = None
+        thumb_url = None
+        device_id = None
+
+        raw_details = None
+        top_ts = None
+
+        # 3) Branch by content-type
         if request.content_type and "multipart/form-data" in request.content_type:
-            # Handle multipart/form-data
             if "file" not in request.files:
                 return jsonify({"error": "No file provided"}), 400
-            
+
             file = request.files["file"]
-            if file.filename == "":
-                return jsonify({"error": "No file selected"}), 400
-            
-            # Validate file type
-            if not file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
+            if not file.filename or not file.filename.lower().endswith((".jpg", ".jpeg", ".png")):
                 return jsonify({"error": "File must be JPEG or PNG"}), 400
-            
-            # Get form fields
-            target_type = request.form.get("target_type", "unknown")
-            details_str = request.form.get("details", "{}")
-            ts_str = request.form.get("ts")
-            
-            # Parse timestamp if provided
-            if ts_str:
+
+            device_id = request.form.get("device_id")
+            top_ts_str = request.form.get("ts")
+            if top_ts_str:
                 try:
-                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                except (ValueError, TypeError):
-                    pass  # Use server time if parsing fails
-            
-            # Parse details
-            details = parse_details(details_str)
-            
-            # Save file
+                    top_ts = datetime.fromisoformat(top_ts_str.replace("Z", "+00:00"))
+                except Exception:
+                    top_ts = None
+
+            # details can be a JSON object or JSON array (string)
+            raw_details = request.form.get("details")
+
+            # save/archive image once
             img_bytes = file.read()
             save_image_bytes(img_bytes, "latest.jpg")
-            
-            # Archive a snapshot for recent detections
-            archived_url = archive_image_bytes(img_bytes, target_type)
-            
+            archived_url = archive_image_bytes(img_bytes, request.form.get("target_type") or "batch")
+            # If your archiver also creates a thumb, expose it (optional)
+            if isinstance(archived_url, dict):
+                thumb_url = archived_url.get("thumb_url")
+                archived_url = archived_url.get("image_url")
+
         elif request.is_json:
-            # Handle application/json
             data = request.get_json(silent=False)
             if data is None:
                 return jsonify({"error": "Invalid JSON payload"}), 400
-            
-            # Validate required fields
-            if "image_b64" not in data:
-                return jsonify({"error": "image_b64 is required"}), 400
-            
-            target_type = data.get("target_type", "unknown")
-            details = parse_details(data.get("details", {}))
-            ts_str = data.get("ts")
-            
-            # Parse timestamp if provided
-            if ts_str:
+
+            device_id = data.get("device_id")
+            top_ts_str = data.get("ts")
+            if top_ts_str:
                 try:
-                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-                except (ValueError, TypeError):
-                    pass  # Use server time if parsing fails
-            
-            # Decode and save image
-            try:
-                img_bytes = decode_b64_image(data["image_b64"])
+                    top_ts = datetime.fromisoformat(top_ts_str.replace("Z", "+00:00"))
+                except Exception:
+                    top_ts = None
+
+            raw_details = data.get("details")
+            if "image_b64" not in data:
+                # allow image-less event (e.g., livedata heartbeat), but still need details
+                if raw_details is None:
+                    return jsonify({"error": "image_b64 or details required"}), 400
+                img_bytes = None
+            else:
+                try:
+                    img_bytes = decode_b64_image(data["image_b64"])
+                except ValueError as e:
+                    return jsonify({"error": str(e)}), 400
+
+            if img_bytes:
                 save_image_bytes(img_bytes, "latest.jpg")
-                
-                # Archive a snapshot for recent detections
-                archived_url = archive_image_bytes(img_bytes, target_type)
-            except ValueError as e:
-                return jsonify({"error": str(e)}), 400
-                
+                archived_url = archive_image_bytes(img_bytes, data.get("target_type") or "batch")
+                if isinstance(archived_url, dict):
+                    thumb_url = archived_url.get("thumb_url")
+                    archived_url = archived_url.get("image_url")
         else:
             return jsonify({"error": "Content-Type must be multipart/form-data or application/json"}), 400
+
+        # 4) Normalize `details` to a Python list of detection items
+        def _to_list(obj):
+            if obj is None:
+                return []
+            if isinstance(obj, list):
+                return obj
+            if isinstance(obj, dict):
+                # Check if this dict has the batch detection schema (target_type + details fields)
+                # If not, it's probably just a details object from the old API
+                if "target_type" in obj and "details" in obj:
+                    return [obj]  # This is a single detection item
+                else:
+                    return []  # This is just a details dict, not a detection item
+            if isinstance(obj, str):
+                # stringified JSON -> parse then recurse
+                try:
+                    parsed = json.loads(obj)
+                except Exception:
+                    return []
+                return _to_list(parsed)
+            return []
+
+        detections = _to_list(raw_details)
+
+        # Back-compat: if client sent only top-level `target_type/details` style (single detection)
+        # Check if we have a top-level target_type field
+        legacy_target_type = (request.form.get("target_type") if request.form else None) or \
+                             (request.json.get("target_type") if request.is_json else None)
         
-        # Check if this is just a live feed frame (no actual detection)
-        # if target_type == "livedata":
-        #     # Just update latest.jpg, don't create database record
-        #     log_request(request, 200)
-        #     return jsonify({
-        #         "status": "ok",
-        #         "message": "Live feed frame updated",
-        #         "url": image_url,
-        #         "ts": ts.isoformat()
-        #     }), 200
-        
-        # Create target detection record for actual detections
+        if not detections and legacy_target_type:
+            # Old-style API: target_type at top level, details is just the details object
+            legacy_details = parse_details(raw_details if raw_details is not None else {})
+            detections = [{
+                "target_type": legacy_target_type,
+                "details": legacy_details
+            }]
+        elif not detections and raw_details is not None:
+            # Have details but no target_type - use "unknown"
+            legacy_details = parse_details(raw_details)
+            # Accept even empty details
+            detections = [{
+                "target_type": "unknown",
+                "details": legacy_details
+            }]
+
+        if not detections:
+            return jsonify({"error": "No detections found in 'details'"}), 400
+
+        # 5) Persist each detection as a row
         from .models import TargetDetection
-        rec = TargetDetection(
-            ts=ts,
-            target_type=target_type,
-            details_json=details,
-            image_url=archived_url  # Use the archived URL instead of latest.jpg
-        )
-        
         from . import db
-        db.session.add(rec)
-        db.session.commit()
-        
-        log_request(request, 201)
-        
-        # Emit target detection via Socket.IO (skip for livedata)
-        if target_type != "livedata":
-            push_target_detected({
-                "ts": rec.ts.isoformat(),
-                "target_type": rec.target_type,
-                "details": rec.details_json,
-                "image_url": rec.image_url
+        saved = []
+        created = 0
+
+        # fallback image URL fields
+        final_image_url = archived_url or image_url_latest
+        final_thumb_url = thumb_url
+
+        for det in detections:
+            # Validate/normalize one item
+            if not isinstance(det, dict):
+                continue
+            target_type = det.get("target_type") or "unknown"
+            details_obj = parse_details(det.get("details", {}))
+            det_ts = det.get("ts")
+            try:
+                ts = datetime.fromisoformat(det_ts.replace("Z", "+00:00")) if det_ts else (top_ts or server_ts)
+            except Exception:
+                ts = top_ts or server_ts
+
+            rec = TargetDetection(
+                ts=ts,
+                target_type=target_type,
+                details_json=details_obj,
+                image_url=final_image_url
+            )
+            db.session.add(rec)
+            saved.append({
+                "target_type": target_type,
+                "ts": ts.isoformat(),
+                "details": details_obj
             })
-        
-        # Consider for Recent Detections (confidence, de-dupe, 4s refresh)
-        # This will also filter out "livedata" in the service itself
-        accepted = recent_detections.consider(target_type, details, archived_url, server_ts=ts.timestamp())
-        if accepted:
-            # Broadcast a dedicated recent-detection event (in addition to existing push_target_detected)
+            created += 1
+
+        db.session.commit()
+        log_request(request, 201)
+
+        # 6) Broadcast per detection & feed "recent_detections"
+        for s in saved:
+            push_target_detected({
+                "ts": s["ts"],
+                "target_type": s["target_type"],
+                "details": s["details"],
+                "image_url": final_image_url,
+                "thumb_url": final_thumb_url,
+                "device_id": device_id
+            })
+            try:
+                # Use server timestamp seconds for de-dupe windowing
+                accepted = recent_detections.consider(
+                    s["target_type"],
+                    s["details"],
+                    final_image_url,
+                    server_ts=server_ts.timestamp(),
+                )
+                if accepted:
+                    # Broadcast a dedicated recent-detection event
+                    from . import socketio
+                    socketio.emit("recent_detection", {
+                        "ts": accepted.ts,
+                        "type": accepted.type,
+                        "details": accepted.details,
+                        "image_url": accepted.image_url,
+                        "thumb_url": accepted.thumb_url
+                    }, namespace="/stream")
+            except Exception:
+                # non-fatal
+                pass
+
+        # (Optional) also emit a single batch event if your UI listens for it
+        try:
             from . import socketio
-            socketio.emit("recent_detection", {
-                "ts": accepted.ts,
-                "type": accepted.type,
-                "details": accepted.details,
-                "image_url": accepted.image_url,
-                "thumb_url": accepted.thumb_url
+            socketio.emit("target_batch", {
+                "count": created,
+                "image_url": final_image_url,
+                "thumb_url": final_thumb_url,
+                "device_id": device_id,
+                "detections": saved
             }, namespace="/stream")
-        
+        except Exception:
+            pass
+
         return jsonify({
-            "url": image_url,
-            "ts": rec.ts.isoformat(),
-            "target_type": rec.target_type,
-            "details": rec.details_json
+            "ok": True,
+            "saved": created,
+            "image_url": final_image_url,
+            "thumb_url": final_thumb_url,
+            "detections": saved
         }), 201
-        
+
     except Exception as e:
         log_error(f"Target API error: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
